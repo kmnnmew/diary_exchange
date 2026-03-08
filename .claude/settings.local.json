@@ -13,7 +13,8 @@
       "Bash(python -c \":*)",
       "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); open\\(''C:/Users/JB. SIM/Downloads/spec_text.txt'',''wb''\\).write\\(data\\)\")",
       "Bash(node -e \"require\\(''./node_modules/openai''\\)\")",
-      "Bash(npm install openai)"
+      "Bash(npm install openai)",
+      "Bash(npm install concurrently --save-dev)"
     ]
   }
 }

@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "공유일기",
-      "runtimeExecutable": "C:/Program Files/nodejs/node.exe",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "5173", "--strictPort"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:auto"],
       "port": 5173
     }
   ]
