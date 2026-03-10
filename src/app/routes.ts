@@ -10,6 +10,7 @@ import { Archive } from "./pages/Archive";
 import { Customize } from "./pages/Customize";
 import { MyPage } from "./pages/MyPage";
 import { NotFound } from "./pages/NotFound";
+import { JoinGroup } from "./pages/JoinGroup";
 import { MainLayout } from "./components/MainLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -40,6 +41,10 @@ export const router = createBrowserRouter([
         ],
       },
     ],
+  },
+  {
+    path: "/join/:inviteCode",
+    Component: JoinGroup,
   },
   {
     path: "*",

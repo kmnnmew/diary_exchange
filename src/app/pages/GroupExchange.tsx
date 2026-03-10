@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Users, Plus, ArrowLeft, Settings, Lock, Unlock, FileText, Stamp, Heart, Globe, ChevronDown, AlertCircle, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
+import { createGroup, getPublicGroups, getMyGroups, joinGroup, submitGroupDiary, leaveGroup } from "../../lib/groups";
 import { useApp } from "../context/AppContext";
 import {
   DiaryDecoratorPanel,
@@ -16,7 +17,7 @@ type TabState = 'status' | 'write' | 'members';
 type ListTab = 'mine' | 'available';
 
 interface Group {
-  id: number;
+  id: string;
   name: string;
   members: number;
   max: number;
@@ -25,6 +26,7 @@ interface Group {
   comments: number;
   isPrivate: boolean;
   desc: string;
+  inviteCode?: string;
 }
 
 
@@ -63,14 +65,30 @@ export function GroupExchange() {
   const [writeContent, setWriteContent] = useState("");
 
   // Member management dropdown
-  const [openMemberDropdown, setOpenMemberDropdown] = useState<number | null>(null);
+  const [openMemberDropdown, setOpenMemberDropdown] = useState<string | null>(null);
 
-  // Real state — persisted to localStorage
-  const [myGroups, setMyGroups] = useState<Group[]>(() => {
-    const raw = localStorage.getItem('myGroups');
-    if (raw) return JSON.parse(raw);
-    return [];
-  });
+  // My groups — loaded from Supabase
+  const [myGroups, setMyGroups] = useState<Group[]>([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    async function loadMyGroups() {
+      const groups = await getMyGroups(user!.id);
+      setMyGroups(groups.map(g => ({
+        id: g.id,
+        name: g.name,
+        members: g.member_count,
+        max: g.max_members,
+        isOwner: g.is_owner,
+        status: 'waiting' as const,
+        comments: 0,
+        isPrivate: g.is_private,
+        desc: g.description,
+        inviteCode: g.invite_code,
+      })));
+    }
+    loadMyGroups();
+  }, [user?.id]);
 
   // ── Available (public) groups — loaded from Supabase ─────────────────────
   const [availableGroups, setAvailableGroups] = useState<Array<{
@@ -95,21 +113,16 @@ export function GroupExchange() {
   // Fetch public groups on mount
   useEffect(() => {
     async function fetchAvailableGroups() {
-      const { data, error } = await supabase
-        .from('groups')
-        .select('id, name, description, max_members, member_count, tags, is_private')
-        .eq('is_private', false);
-      if (!error && data) {
-        setAvailableGroups(data.map((g: any) => ({
-          id: g.id,
-          name: g.name,
-          members: g.member_count ?? 0,
-          max: g.max_members ?? 10,
-          desc: g.description ?? '',
-          isPrivate: false,
-          tags: (g.tags as string[]) ?? [],
-        })));
-      }
+      const groups = await getPublicGroups();
+      setAvailableGroups(groups.map(g => ({
+        id: g.id,
+        name: g.name,
+        members: g.member_count,
+        max: g.max_members,
+        desc: g.description,
+        isPrivate: g.is_private,
+        tags: [],
+      })));
     }
     fetchAvailableGroups();
   }, []);
@@ -166,33 +179,49 @@ export function GroupExchange() {
     setActiveTab('status');
   };
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     if (!newGroupName.trim()) {
       toast.error("그룹 이름을 입력해주세요.");
       return;
     }
-    const newGroup: Group = {
-      id: Date.now(),
-      name: newGroupName.trim(),
+    if (!user?.id) return;
+
+    const { data: group, error } = await createGroup(
+      {
+        name: newGroupName.trim(),
+        description: newGroupDesc.trim() || '새로운 그룹입니다.',
+        maxMembers: newGroupMax,
+        isPrivate: newGroupPrivate,
+        inviteMethod: inviteMethod,
+        invitePassword: inviteMethod === 'password' ? invitePassword : undefined,
+      },
+      user.id
+    );
+
+    if (error || !group) {
+      toast.error("그룹 생성에 실패했습니다.");
+      return;
+    }
+
+    setMyGroups(prev => [...prev, {
+      id: group.id,
+      name: group.name,
       members: 1,
-      max: newGroupMax,
+      max: group.max_members,
       isOwner: true,
-      status: 'waiting',
+      status: 'waiting' as const,
       comments: 0,
-      isPrivate: newGroupPrivate,
-      desc: newGroupDesc.trim() || '새로운 그룹입니다.',
-    };
-    setMyGroups(prev => {
-      const updated = [...prev, newGroup];
-      localStorage.setItem('myGroups', JSON.stringify(updated));
-      return updated;
-    });
+      isPrivate: group.is_private,
+      desc: group.description,
+      inviteCode: group.invite_code,
+    }]);
     setShowCreateModal(false);
     setNewGroupName("");
     setNewGroupDesc("");
     setNewGroupMax(6);
     setNewGroupPrivate(false);
-    toast.success(`"${newGroup.name}" 그룹이 생성되었습니다!`);
+    setInvitePassword("");
+    toast.success(`"${group.name}" 그룹이 생성되었습니다!`);
   };
 
   const handleDiaryClick = (diary: any) => {
@@ -323,28 +352,24 @@ export function GroupExchange() {
                     </button>
                   ) : (
                     <button
-                      onClick={() => {
-                        const alreadyIn = myGroups.some(g => g.name === group.name);
-                        if (alreadyIn) {
-                          toast.info("이미 참여 중인 그룹입니다.");
+                      onClick={async () => {
+                        if (!user?.id) return;
+                        const result = await joinGroup(String(group.id), user.id);
+                        if (!result.success) {
+                          toast.error(result.error || "참여에 실패했습니다.");
                           return;
                         }
-                        const newGroup: Group = {
-                          id: Date.now(),
+                        setMyGroups(prev => [...prev, {
+                          id: String(group.id),
                           name: group.name,
                           members: group.members + 1,
                           max: group.max,
                           isOwner: false,
-                          status: 'waiting',
+                          status: 'waiting' as const,
                           comments: 0,
                           isPrivate: false,
                           desc: group.desc,
-                        };
-                        setMyGroups(prev => {
-                          const updated = [...prev, newGroup];
-                          localStorage.setItem('myGroups', JSON.stringify(updated));
-                          return updated;
-                        });
+                        }]);
                         toast.success(`"${group.name}" 그룹에 참여했습니다!`);
                         setListTab('mine');
                       }}
@@ -511,6 +536,14 @@ export function GroupExchange() {
           )}
         </div>
 
+        {/* Invite code — owners only */}
+        {selectedGroup?.isOwner && selectedGroup?.inviteCode && (
+          <div className="mb-4 p-3 border border-dashed border-[var(--accent)]/40 rounded-[4px] flex items-center justify-between">
+            <span className="text-[10pt] font-mono text-[var(--text-muted)]">초대 코드</span>
+            <span className="font-mono text-[11pt] text-[var(--accent)] tracking-widest select-all">{selectedGroup.inviteCode}</span>
+          </div>
+        )}
+
         {/* Detail Tabs */}
         <div className="flex gap-8 mb-8 border-b border-[var(--line)]">
           {(['status', 'write', 'members'] as TabState[]).map(tab => (
@@ -663,9 +696,22 @@ export function GroupExchange() {
                     </button>
                   </div>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (/(.)\1{4,}/.test(writeContent)) {
                         toast.error("의미 없는 반복 문자는 전송할 수 없습니다. 내용을 조금 더 작성해주세요.");
+                        return;
+                      }
+                      if (!user?.id || !selectedGroup?.id) return;
+                      const result = await submitGroupDiary({
+                        groupId: String(selectedGroup.id),
+                        userId: user.id,
+                        content: writeContent,
+                        emotion: decoration.emotion || undefined,
+                        stamp: decoration.stamp || undefined,
+                        paper: decoration.paper,
+                      });
+                      if (!result.success) {
+                        toast.error(result.error || "일기 전송에 실패했습니다.");
                         return;
                       }
                       addArchiveEntry({
@@ -677,13 +723,11 @@ export function GroupExchange() {
                         status: 'waiting',
                         groupName: selectedGroup?.name,
                       });
-                      setMyGroups(prev => {
-                        const updated = prev.map(g =>
+                      setMyGroups(prev =>
+                        prev.map(g =>
                           g.id === selectedGroup?.id ? { ...g, status: 'completed' as const } : g
-                        );
-                        localStorage.setItem('myGroups', JSON.stringify(updated));
-                        return updated;
-                      });
+                        )
+                      );
                       toast.success("그룹에 일기를 전송했습니다.");
                       setWriteContent("");
                       setGroupDiaryWrittenToday(true);
@@ -754,6 +798,23 @@ export function GroupExchange() {
                 )}
               </div>
             ))}
+            {/* Leave group — non-owners only */}
+            {!selectedGroup?.isOwner && (
+              <div className="pt-6 flex justify-end">
+                <button
+                  onClick={async () => {
+                    if (!user?.id || !selectedGroup?.id) return;
+                    await leaveGroup(String(selectedGroup.id), user.id);
+                    setMyGroups(prev => prev.filter(g => g.id !== selectedGroup?.id));
+                    setView('list');
+                    toast.success("그룹에서 나왔습니다.");
+                  }}
+                  className="text-[10pt] font-mono text-[var(--text-muted)] hover:text-[var(--destructive)] transition-colors"
+                >
+                  그룹 나가기
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
