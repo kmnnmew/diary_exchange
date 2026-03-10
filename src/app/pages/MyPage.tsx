@@ -3,9 +3,11 @@ import { Link } from "react-router";
 import { User, Mail, Shield, Bell, ChevronRight, LogOut, Crown, Calendar, BookOpen, MessageSquare, Sparkles, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useApp, useUnreadCount } from "../context/AppContext";
+import { useAuth } from "../../hooks/useAuth";
 
 export function MyPage() {
   const { notifications, markAllRead, archiveEntries, nickname, setNickname } = useApp();
+  const { user, profile } = useAuth();
   const unreadCount = useUnreadCount();
   const [showNotifications, setShowNotifications] = useState(false);
   const [editingNickname, setEditingNickname] = useState(false);
@@ -65,10 +67,12 @@ export function MyPage() {
           ) : (
             <div className="text-[18pt] font-serif mb-1">{nickname}</div>
           )}
-          <div className="text-[11pt] font-mono text-[var(--text-muted)]">user@example.com</div>
+          <div className="text-[11pt] font-mono text-[var(--text-muted)]">{user?.email ?? ''}</div>
           <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-[var(--line)] rounded-full text-[9pt] font-mono text-[var(--text-muted)]">
             <Calendar className="w-3 h-3" />
-            2026년 1월부터 함께함
+            {profile?.created_at
+              ? `${new Date(profile.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', timeZone: 'Asia/Seoul' })}부터 함께함`
+              : '함께하는 중'}
           </div>
         </div>
         <button

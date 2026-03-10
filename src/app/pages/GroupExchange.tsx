@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, Plus, ArrowLeft, Settings, Lock, Unlock, FileText, Stamp, Heart, Globe, ChevronDown, AlertCircle, Flag } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "../../lib/supabase";
 import { useApp } from "../context/AppContext";
 import {
   DiaryDecoratorPanel,
@@ -26,14 +27,9 @@ interface Group {
   desc: string;
 }
 
-const INITIAL_GROUPS: Group[] = [
-  { id: 1, name: "독서 모임", members: 6, max: 8, isOwner: true, status: 'completed', comments: 2, isPrivate: true, desc: "함께 책을 읽고 감상을 나눠요" },
-  { id: 2, name: "기상 스터디", members: 4, max: 6, isOwner: false, status: 'writing', comments: 0, isPrivate: false, desc: "매일 아침 6시 기상 인증" },
-  { id: 3, name: "일상 나누기", members: 3, max: 5, isOwner: false, status: 'waiting', comments: 1, isPrivate: true, desc: "소소한 일상을 기록하는 곳" },
-];
 
 export function GroupExchange() {
-  const { setGroupDiaryWrittenToday, addArchiveEntry } = useApp();
+  const { setGroupDiaryWrittenToday, addArchiveEntry, user } = useApp();
   const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
   const [view, setView] = useState<ViewState>('list');
@@ -73,24 +69,72 @@ export function GroupExchange() {
   const [myGroups, setMyGroups] = useState<Group[]>(() => {
     const raw = localStorage.getItem('myGroups');
     if (raw) return JSON.parse(raw);
-    localStorage.setItem('myGroups', JSON.stringify(INITIAL_GROUPS));
-    return INITIAL_GROUPS;
+    return [];
   });
 
-  const availableGroups = [
-    { id: 101, name: "영화 감상", members: 4, max: 8, desc: "매주 영화 한 편 보고 이야기해요", isPrivate: false, tags: ["영화", "주간"] },
-    { id: 102, name: "글쓰기 연습", members: 7, max: 10, desc: "매일 500자 글쓰기 도전", isPrivate: false, tags: ["글쓰기", "매일"] },
-    { id: 103, name: "자연 관찰", members: 2, max: 6, desc: "계절의 변화를 기록하는 일기 모임", isPrivate: false, tags: ["자연", "계절"] },
-    { id: 104, name: "여행 일지", members: 5, max: 8, desc: "여행 경험을 나누는 모임", isPrivate: false, tags: ["여행", "기록"] },
-    { id: 105, name: "음악 감상", members: 3, max: 6, desc: "좋아하는 음악과 함께한 하루를 써요", isPrivate: false, tags: ["음악", "감성"] },
-  ];
+  // ── Available (public) groups — loaded from Supabase ─────────────────────
+  const [availableGroups, setAvailableGroups] = useState<Array<{
+    id: number | string;
+    name: string;
+    members: number;
+    max: number;
+    desc: string;
+    isPrivate: boolean;
+    tags: string[];
+  }>>([]);
 
-  const groupMembers = [
-    { id: 1, name: "나", status: 'completed', isMe: true, isOwner: true },
-    { id: 2, name: "책벌레", status: 'completed', isMe: false, isOwner: false },
-    { id: 3, name: "새벽형", status: 'waiting', isMe: false, isOwner: false },
-    { id: 4, name: "커피러버", status: 'writing', isMe: false, isOwner: false },
-  ];
+  // ── Group members — loaded from Supabase when a group is selected ─────────
+  const [groupMembers, setGroupMembers] = useState<Array<{
+    id: string;
+    name: string;
+    status: 'completed' | 'writing' | 'waiting';
+    isMe: boolean;
+    isOwner: boolean;
+  }>>([]);
+
+  // Fetch public groups on mount
+  useEffect(() => {
+    async function fetchAvailableGroups() {
+      const { data, error } = await supabase
+        .from('groups')
+        .select('id, name, description, max_members, member_count, tags, is_private')
+        .eq('is_private', false);
+      if (!error && data) {
+        setAvailableGroups(data.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          members: g.member_count ?? 0,
+          max: g.max_members ?? 10,
+          desc: g.description ?? '',
+          isPrivate: false,
+          tags: (g.tags as string[]) ?? [],
+        })));
+      }
+    }
+    fetchAvailableGroups();
+  }, []);
+
+  // Fetch members when a group is selected
+  useEffect(() => {
+    if (!selectedGroup?.id) return;
+    async function fetchGroupMembers() {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('user_id, profiles(nickname)')
+        .eq('group_id', selectedGroup.id)
+        .eq('status', 'active');
+      if (!error && data) {
+        setGroupMembers(data.map((m: any) => ({
+          id: m.user_id,
+          name: (m.profiles as any)?.nickname ?? '익명',
+          status: 'waiting' as const,
+          isMe: m.user_id === user?.id,
+          isOwner: m.user_id === selectedGroup.owner_id,
+        })));
+      }
+    }
+    fetchGroupMembers();
+  }, [selectedGroup?.id, user?.id]);
 
   const handleGroupClick = (group: any) => {
     setSelectedGroup(group);
@@ -738,9 +782,7 @@ export function GroupExchange() {
           </div>
           <div className="relative z-10">
             <p className="font-serif text-[15pt] leading-[2.0]">
-              어제는 정말 바쁜 하루였다. 그룹 스터디 준비를 하느라 밤을 새웠다.
-              그래도 멤버들이 다들 열심히 해줘서 보람찼다.
-              다음 주에는 좀 더 여유가 생겼으면 좋겠다.
+              {selectedDiary?.content}
             </p>
           </div>
         </div>

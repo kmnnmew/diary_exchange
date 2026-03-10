@@ -58,6 +58,41 @@ export function Home() {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
+  // ── Pending group comments (diaries where user is the receiver) ───────────
+  const [pendingCommentCount, setPendingCommentCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    async function fetchPendingCount() {
+      const { count } = await supabase
+        .from('diary_matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('receiver_id', user!.id)
+        .eq('status', 'pending');
+      setPendingCommentCount(count ?? 0);
+    }
+    fetchPendingCount();
+  }, [user?.id]);
+
+  // ── Last AI diary date ────────────────────────────────────────────────────
+  const [lastAiDiaryDate, setLastAiDiaryDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    async function fetchLastAiDiary() {
+      const { data } = await supabase
+        .from('diaries')
+        .select('created_date')
+        .eq('author_id', user!.id)
+        .eq('exchange_mode', 'ai')
+        .order('created_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setLastAiDiaryDate(data?.created_date ?? null);
+    }
+    fetchLastAiDiary();
+  }, [user?.id]);
+
   const groupCount = (() => {
     try { return JSON.parse(localStorage.getItem('myGroups') || '[]').length; } catch { return 0; }
   })();
@@ -215,7 +250,11 @@ export function Home() {
           <div className="mb-6">
             <div className="text-[16pt] font-serif mb-1">{groupCount}개 그룹 참여 중</div>
             <div className={`text-[10pt] font-mono ${groupDiaryWrittenToday ? 'text-[var(--secondary)]' : 'text-[var(--accent)]'}`}>
-              {groupDiaryWrittenToday ? '오늘 일기 완료 ✓' : '대기 중인 코멘트 2건'}
+              {groupDiaryWrittenToday
+                ? '오늘 일기 완료 ✓'
+                : pendingCommentCount !== null && pendingCommentCount > 0
+                  ? `대기 중인 코멘트 ${pendingCommentCount}건`
+                  : '일기를 작성해보세요'}
             </div>
           </div>
           <Link to="/app/group">
@@ -233,7 +272,11 @@ export function Home() {
               <Sparkles className="w-4 h-4 stroke-[1.5] text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors" />
             </div>
             <div className="text-[15pt] font-serif">
-              {aiDiaryWrittenToday ? '오늘 일기 보냄 · 내일 오전 8시 답장 예정' : '마지막 코멘트: 2026. 02. 28'}
+              {aiDiaryWrittenToday
+                ? '오늘 일기 보냄 · 내일 오전 8시 답장 예정'
+                : lastAiDiaryDate
+                  ? `마지막 일기: ${new Date(lastAiDiaryDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' })}`
+                  : 'AI와 일기를 교환해보세요'}
             </div>
           </div>
           <Link to="/app/ai" className="w-full md:w-auto">
