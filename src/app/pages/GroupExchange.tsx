@@ -136,6 +136,30 @@ export function GroupExchange() {
     fetchGroupMembers();
   }, [selectedGroup?.id, user?.id]);
 
+  // ── Fetch group diary history when a group is selected ────────────────────
+  const [groupDiaryHistory, setGroupDiaryHistory] = useState<Array<{
+    id: string;
+    content: string;
+    created_date: string;
+  }>>([]);
+
+  useEffect(() => {
+    if (!selectedGroup?.id || !user?.id) return;
+    async function fetchGroupDiaryHistory() {
+      const { data, error } = await supabase
+        .from('diaries')
+        .select('id, content, created_date')
+        .eq('author_id', user!.id)
+        .eq('exchange_mode', 'group')
+        .order('created_date', { ascending: false })
+        .limit(20);
+      if (!error && data) {
+        setGroupDiaryHistory(data);
+      }
+    }
+    fetchGroupDiaryHistory();
+  }, [selectedGroup?.id, user?.id]);
+
   const handleGroupClick = (group: any) => {
     setSelectedGroup(group);
     setView('detail');
@@ -551,14 +575,21 @@ export function GroupExchange() {
             <div className="mt-12">
               <h3 className="text-[14pt] font-serif mb-4 border-b border-[var(--line)] pb-2">이전 교환 기록</h3>
               <div className="space-y-2">
-                <div
-                  onClick={() => handleDiaryClick({ id: 1, date: '2026. 03. 01' })}
-                  className="p-4 hover:bg-[var(--surface)] border border-transparent hover:border-[var(--line)] cursor-pointer flex justify-between items-center transition-colors"
-                >
-                  <span className="font-mono text-[10pt] text-[var(--text-muted)]">2026. 03. 01</span>
-                  <span className="font-serif text-[12pt] text-[var(--text-muted)]">작성된 일기가 있습니다.</span>
-                  <span className="text-[var(--secondary)] text-[10pt] font-mono">완료</span>
-                </div>
+                {groupDiaryHistory.length === 0 ? (
+                  <p className="text-[var(--text-muted)] font-mono text-[10pt] py-4 text-center">이전 교환 기록이 없어요.</p>
+                ) : (
+                  groupDiaryHistory.map(diary => (
+                    <div
+                      key={diary.id}
+                      onClick={() => handleDiaryClick({ id: diary.id, date: diary.created_date, content: diary.content })}
+                      className="p-4 hover:bg-[var(--surface)] border border-transparent hover:border-[var(--line)] cursor-pointer flex justify-between items-center transition-colors"
+                    >
+                      <span className="font-mono text-[10pt] text-[var(--text-muted)]">{diary.created_date}</span>
+                      <span className="font-serif text-[12pt] text-[var(--text-muted)]">작성된 일기가 있습니다.</span>
+                      <span className="text-[var(--secondary)] text-[10pt] font-mono">완료</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

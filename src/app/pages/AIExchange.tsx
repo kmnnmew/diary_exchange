@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
-import { scheduleAIComment } from "../../lib/ai";
+import { scheduleAIComment, PERSONAS } from "../../lib/ai";
 import {
   DiaryDecoratorPanel,
   defaultDecoration,
@@ -31,19 +31,9 @@ interface AiComment {
   created_at: string
 }
 
-// ── Persona definitions ───────────────────────────────────────────────────────
-const personas = [
-  { id: 'friend',   name: '따뜻한 친구',   desc: '공감과 위로를 주는 친구' },
-  { id: 'observer', name: '냉철한 관찰자', desc: '객관적인 시선으로 분석' },
-  { id: 'poet',     name: '시인',          desc: '감성적인 언어로 표현' },
-]
-
-const personaLabel: Record<string, string> = {
-  friend: '따뜻한 친구',
-  observer: '냉철한 관찰자',
-  poet: '시인',
-  custom: '나만의 AI',
-}
+// ── Persona label helper (uses PERSONAS exported from ai.ts) ─────────────────
+const getPersonaLabel = (id: string) =>
+  id === 'custom' ? '나만의 AI' : (PERSONAS.find(p => p.id === id)?.label ?? id)
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function AIExchange() {
@@ -212,7 +202,7 @@ export function AIExchange() {
       setTodayEntry(newDiary);
       setAiComment(null);
 
-      const personaName = effectivePersona === 'custom' ? '나만의 AI' : (personaLabel[effectivePersona] ?? effectivePersona);
+      const personaName = getPersonaLabel(effectivePersona);
       addNotification({
         message: `[${personaName}] AI 답장이 내일 오전 8시에 도착합니다.`,
         type: 'ai',
@@ -322,14 +312,14 @@ export function AIExchange() {
                   <div className="mt-6">
                     <div className="text-[10pt] font-mono mb-3">AI 성격 선택</div>
                     <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                      {personas.map(p => (
+                      {PERSONAS.map(p => (
                         <div
                           key={p.id}
                           onClick={() => setSelectedPersona(p.id)}
                           className={`min-w-[140px] p-4 border rounded-[4px] cursor-pointer transition-colors ${selectedPersona === p.id ? 'border-[var(--accent)] bg-[var(--accent)]/5' : 'border-[var(--line)] hover:border-[var(--accent)]/50'}`}
                         >
-                          <div className="font-serif text-[12pt] mb-1">{p.name}</div>
-                          <div className="text-[9pt] text-[var(--text-muted)] line-clamp-2">{p.desc}</div>
+                          <div className="font-serif text-[12pt] mb-1">{p.label}</div>
+                          <div className="text-[9pt] text-[var(--text-muted)] line-clamp-2">{p.description}</div>
                         </div>
                       ))}
 
@@ -466,7 +456,7 @@ export function AIExchange() {
                   <div className="bg-[var(--surface)] w-full max-w-2xl rounded-t-[12px] p-8 shadow-lg animate-in slide-in-from-bottom duration-300" onClick={e => e.stopPropagation()}>
                     <h3 className="text-[20pt] font-serif mb-2 text-center">AI에게 보냅니다</h3>
                     <p className="text-[11pt] text-[var(--text-muted)] font-serif text-center mb-8">
-                      내일 오전 8시에 [{selectedPersona === 'custom' ? '나만의 AI' : (personaLabel[selectedPersona] ?? selectedPersona)}]의 코멘트가 도착합니다.
+                      내일 오전 8시에 [{getPersonaLabel(selectedPersona)}]의 코멘트가 도착합니다.
                     </p>
                     <div className="flex gap-4">
                       <button
@@ -527,7 +517,7 @@ export function AIExchange() {
                   </div>
                   {aiComment?.ai_persona && (
                     <span className="font-mono text-[9pt] text-[var(--secondary)] px-2 py-0.5 border border-[var(--secondary)] rounded-full">
-                      {personaLabel[aiComment.ai_persona] ?? aiComment.ai_persona}
+                      {getPersonaLabel(aiComment.ai_persona)}
                     </span>
                   )}
                 </div>

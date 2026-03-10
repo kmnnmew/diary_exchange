@@ -2,9 +2,12 @@ import { useState } from "react";
 import { Lock, Sun, Moon, Flower2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useApp, type ThemeType } from "../context/AppContext";
+import { useAuth } from "../../hooks/useAuth";
 
 export function Customize() {
   const { theme, setTheme } = useApp();
+  const { profile } = useAuth();
+  const isUserPremium = profile?.subscription_type === 'premium';
 
   const [selectedPaper, setSelectedPaper] = useState(() => {
     return localStorage.getItem('defaultPaper') || 'lined';
@@ -23,14 +26,14 @@ export function Customize() {
   };
 
   const paperDesigns = [
-    { id: 'lined', name: '줄지 노트', premium: false },
-    { id: 'grid', name: '모눈 노트', premium: false },
-    { id: 'dot', name: '점선 노트', premium: false },
-    { id: 'plain', name: '무지 노트', premium: false },
+    { id: 'lined',   name: '줄지 노트',  premium: false },
+    { id: 'grid',    name: '모눈 노트',  premium: false },
+    { id: 'dot',     name: '점선 노트',  premium: false },
+    { id: 'plain',   name: '무지 노트',  premium: false },
     { id: 'vintage', name: '빈티지 노트', premium: false },
-    { id: 'pastel', name: '파스텔', premium: true },
-    { id: 'spring', name: '봄 한정', premium: true },
-    { id: 'summer', name: '여름 한정', premium: true },
+    { id: 'pastel',  name: '파스텔',     premium: !isUserPremium },
+    { id: 'spring',  name: '봄 한정',    premium: !isUserPremium },
+    { id: 'summer',  name: '여름 한정',  premium: !isUserPremium },
   ];
 
   const stamps = {

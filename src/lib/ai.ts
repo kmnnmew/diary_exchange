@@ -1,6 +1,13 @@
 import { openai } from './openai'
 import { supabase } from './supabase'
 
+// ── Persona metadata — single source of truth for id, label, description ─────
+export const PERSONAS = [
+  { id: 'friend',   label: '따뜻한 친구',   description: '공감과 위로를 주는 친구' },
+  { id: 'observer', label: '냉철한 관찰자', description: '객관적인 시선으로 분석' },
+  { id: 'poet',     label: '시인',          description: '감성적인 언어로 표현' },
+] as const
+
 // ── Persona system prompts ────────────────────────────────────────────────────
 export const PERSONA_PROMPTS: Record<string, string> = {
   friend:
