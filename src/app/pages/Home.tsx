@@ -16,7 +16,8 @@ export function Home() {
   useEffect(() => {
     if (!user) return;
     const userId = user.id;
-    const today = new Date().toISOString().split('T')[0];
+    // Use KST date so the status resets at midnight KST, not UTC
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 
     async function fetchStatus() {
       const { data } = await supabase

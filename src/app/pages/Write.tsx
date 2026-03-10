@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { FileText, Stamp, Heart, X, AlertTriangle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -10,13 +10,13 @@ import {
   type DiaryDecoration,
 } from "../components/DiaryDecoratorPanel";
 import { useApp } from "../context/AppContext";
+import { supabase } from "../../lib/supabase";
 import { checkInappropriateContent, hasRepetitiveChars } from "../../lib/moderation";
 import { submitAnonymousDiary, checkDailyLimit } from "../../lib/diary";
 
 export function Write() {
   const {
     user,
-    diaryStatus,
     setDiaryStatus,
     setTodayDiary,
     addNotification,
@@ -26,7 +26,9 @@ export function Write() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [showSendSheet, setShowSendSheet] = useState(false);
-  const [isSent, setIsSent] = useState(diaryStatus !== 'unwritten');
+  // isSent is always derived from a Supabase query, never from localStorage
+  const [isSent, setIsSent] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
   const [sending, setSending] = useState(false);
 
   const [decoration, setDecoration] = useState<DiaryDecoration>(() => {
@@ -39,6 +41,35 @@ export function Write() {
     };
   });
   const [activePanel, setActivePanel] = useState<'paper' | 'stamp' | 'emotion' | null>(null);
+
+  // On mount: check Supabase for today's (KST) anonymous diary.
+  // This replaces the old localStorage-backed isSent initialization.
+  useEffect(() => {
+    if (!user) { setCheckingStatus(false); return; }
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    supabase
+      .from('diaries')
+      .select('id, title, content, emotion, stamp')
+      .eq('author_id', user.id)
+      .eq('exchange_mode', 'anonymous')
+      .eq('created_date', today)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setIsSent(true);
+          // Populate state so the "already sent" view can display the diary
+          setTitle(data.title ?? '');
+          setContent(data.content ?? '');
+          setDecoration(prev => ({
+            ...prev,
+            stamp:   data.stamp   ?? prev.stamp,
+            emotion: data.emotion ?? prev.emotion,
+          }));
+        }
+        setCheckingStatus(false);
+      });
+  }, [user?.id]);
 
   const today = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -159,14 +190,15 @@ export function Write() {
   const emotionInfo = getEmotionInfo(decoration.emotion);
   const paperStyle = getPaperStyle(decoration.paper);
 
+  // Wait for Supabase check before rendering anything — prevents a flash of the write form
+  if (checkingStatus) return null;
+
   if (isSent) {
-    const savedDiary = (() => {
-      try { return JSON.parse(localStorage.getItem('todayDiary') || 'null'); } catch { return null; }
-    })();
-    const displayTitle = savedDiary?.title || title;
-    const displayContent = savedDiary?.content || content || '일기 내용';
-    const displayStamp = savedDiary?.stamp || decoration.stamp;
-    const displayEmotionInfo = getEmotionInfo(savedDiary?.emotion || decoration.emotion || null);
+    // Use component state (populated from Supabase on mount or just submitted)
+    const displayTitle = title;
+    const displayContent = content || '일기 내용';
+    const displayStamp = decoration.stamp;
+    const displayEmotionInfo = getEmotionInfo(decoration.emotion || null);
 
     return (
       <div className="max-w-4xl mx-auto p-8 font-serif min-h-screen flex flex-col">

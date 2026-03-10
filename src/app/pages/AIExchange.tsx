@@ -86,7 +86,8 @@ export function AIExchange() {
   useEffect(() => {
     if (!user) { setLoadingEntry(false); return; }
 
-    const today = new Date().toISOString().split('T')[0];
+    // KST date so the AI diary resets at midnight KST, not UTC
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 
     async function fetchEntry() {
       // Fetch today's AI diary
@@ -178,7 +179,8 @@ export function AIExchange() {
     setShowSendSheet(false);
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // KST date so the AI diary resets at midnight KST, not UTC
+      const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 
       // Insert diary with ai exchange mode
       const { data: newDiary, error: insertErr } = await supabase

@@ -7,7 +7,8 @@ export async function checkDailyLimit(
   userId: string,
   mode: string
 ): Promise<boolean> {
-  const today = new Date().toISOString().split('T')[0] // 'YYYY-MM-DD'
+  // Use KST date so the daily limit resets at midnight KST, not UTC
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
   const { count, error } = await supabase
     .from('diaries')
     .select('*', { count: 'exact', head: true })
@@ -36,7 +37,8 @@ export async function submitAnonymousDiary(params: {
   const { safe, reason } = await validateContent(params.content)
   if (!safe) throw new Error(reason)
 
-  // Insert diary row
+  // Insert diary row — store KST date so queries by created_date match correctly
+  const createdDate = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
   const { data: diary, error } = await supabase
     .from('diaries')
     .insert({
@@ -48,6 +50,7 @@ export async function submitAnonymousDiary(params: {
       stamp: params.stamp || null,
       emotion: params.emotion || null,
       status: 'waiting',
+      created_date: createdDate,
     })
     .select('id')
     .single()
@@ -70,9 +73,12 @@ export async function matchAnonymousDiary(
   diaryId: string,
   senderId: string
 ): Promise<void> {
-  const today = new Date().toISOString().split('T')[0]
-  const todayStart = `${today}T00:00:00.000Z`
-  const todayEnd   = `${today}T23:59:59.999Z`
+  // KST date for created_date comparisons; UTC range for created_at timestamp comparisons
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
+  // KST midnight = UTC 15:00 of the previous calendar day
+  const kstMidnightUTC = new Date(`${today}T00:00:00+09:00`)
+  const todayStart = kstMidnightUTC.toISOString()
+  const todayEnd   = new Date(kstMidnightUTC.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString()
 
   console.log('[DEBUG match] ── start ──────────────────────────────')
   console.log('[DEBUG match] diaryId  :', diaryId)

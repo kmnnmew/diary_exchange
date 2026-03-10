@@ -123,24 +123,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return (localStorage.getItem('theme') as ThemeType) || 'light';
   });
 
-  // ── Diary status ──────────────────────────────────────────
-  const [diaryStatus, setDiaryStatus] = useState<DiaryStatus>(() => {
-    const today = new Date().toDateString();
-    const savedDate = localStorage.getItem('diaryDate');
-    const savedStatus = localStorage.getItem('diaryStatus') as DiaryStatus;
-    if (savedDate === today && savedStatus) return savedStatus;
-    return 'unwritten';
-  });
+  // ── Diary status — always derived from Supabase, never from localStorage ──
+  const [diaryStatus, setDiaryStatus] = useState<DiaryStatus>('unwritten');
 
-  const [todayDiary, setTodayDiaryState] = useState<AppContextType['todayDiary']>(() => {
-    const today = new Date().toDateString();
-    const savedDate = localStorage.getItem('diaryDate');
-    if (savedDate === today) {
-      const raw = localStorage.getItem('todayDiary');
-      if (raw) return JSON.parse(raw);
-    }
-    return null;
-  });
+  const [todayDiary, setTodayDiaryState] = useState<AppContextType['todayDiary']>(null);
 
   // ── Notifications ─────────────────────────────────────────
   const [notifications, setNotifications] = useState<Notification[]>(() => {
@@ -168,6 +154,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('archiveEntries', JSON.stringify(initial));
     return initial;
   });
+
+  // ── Clear stale diary-status localStorage keys on every mount ────────────
+  useEffect(() => {
+    localStorage.removeItem('diaryStatus');
+    localStorage.removeItem('diaryDate');
+    localStorage.removeItem('todayDiary');
+  }, []);
 
   // ── Nickname: localStorage until profile loads ────────────
   const [nickname, setNicknameState] = useState(() => {
@@ -201,8 +194,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const updated = payload.new as { status: string };
           if (updated.status === 'commented' || updated.status === 'returned') {
             setDiaryStatus('arrived');
-            localStorage.setItem('diaryStatus', 'arrived');
-            localStorage.setItem('diaryDate', new Date().toDateString());
           }
         }
       )
@@ -251,8 +242,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // A comment notification means our diary got a reply
           if (row.type === 'comment') {
             setDiaryStatus('arrived');
-            localStorage.setItem('diaryStatus', 'arrived');
-            localStorage.setItem('diaryDate', new Date().toDateString());
           }
         }
       )
@@ -275,18 +264,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setDiaryStatusAndSave = (s: DiaryStatus) => {
     setDiaryStatus(s);
-    localStorage.setItem('diaryStatus', s);
-    localStorage.setItem('diaryDate', new Date().toDateString());
   };
 
   const setTodayDiary = (d: AppContextType['todayDiary']) => {
     setTodayDiaryState(d);
-    if (d) {
-      localStorage.setItem('todayDiary', JSON.stringify(d));
-      localStorage.setItem('diaryDate', new Date().toDateString());
-    } else {
-      localStorage.removeItem('todayDiary');
-    }
   };
 
   const markAllRead = () => {
