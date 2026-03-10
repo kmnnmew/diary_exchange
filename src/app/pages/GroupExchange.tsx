@@ -173,6 +173,26 @@ export function GroupExchange() {
     fetchGroupDiaryHistory();
   }, [selectedGroup?.id, user?.id]);
 
+  // ── Today's group diary status — reloaded each time a group is entered ───────
+  const [todayGroupDiary, setTodayGroupDiary] = useState<{ id: string; status: string } | null>(null);
+
+  useEffect(() => {
+    setTodayGroupDiary(null); // always reset on group change
+    if (!selectedGroup?.id || !user?.id) return;
+    const kstToday = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    async function fetchTodayDiary() {
+      const { data } = await supabase
+        .from('diaries')
+        .select('id, status')
+        .eq('author_id', user!.id)
+        .eq('exchange_mode', 'group')
+        .eq('created_date', kstToday)
+        .maybeSingle();
+      setTodayGroupDiary(data ?? null);
+    }
+    fetchTodayDiary();
+  }, [selectedGroup?.id, user?.id]);
+
   const handleGroupClick = (group: any) => {
     setSelectedGroup(group);
     setView('detail');
@@ -560,12 +580,16 @@ export function GroupExchange() {
         {activeTab === 'status' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             {/* My Status Card */}
-            <div className="bg-[var(--surface)] border-l-4 border-[var(--secondary)] shadow-sm p-6 mb-8 flex items-center justify-between">
+            <div className={`bg-[var(--surface)] border-l-4 shadow-sm p-6 mb-8 flex items-center justify-between ${todayGroupDiary ? 'border-[var(--secondary)]' : 'border-[var(--line)]'}`}>
               <div>
                 <div className="text-[10pt] font-mono text-[var(--text-muted)] mb-2">오늘의 일기</div>
-                <div className="text-[16pt] font-serif text-[var(--secondary)]">작성 완료</div>
+                <div className={`text-[16pt] font-serif ${todayGroupDiary ? 'text-[var(--secondary)]' : 'text-[var(--text-muted)]'}`}>
+                  {todayGroupDiary ? '작성 완료' : '미작성'}
+                </div>
               </div>
-              <div className="text-[var(--text-muted)] font-mono text-[10pt]">전달 완료</div>
+              <div className="text-[var(--text-muted)] font-mono text-[10pt]">
+                {todayGroupDiary ? '전달 완료' : '아직 작성 전'}
+              </div>
             </div>
 
             {/* Member List */}
@@ -728,6 +752,7 @@ export function GroupExchange() {
                           g.id === selectedGroup?.id ? { ...g, status: 'completed' as const } : g
                         )
                       );
+                      setTodayGroupDiary({ id: result.diaryId!, status: 'waiting' });
                       toast.success("그룹에 일기를 전송했습니다.");
                       setWriteContent("");
                       setGroupDiaryWrittenToday(true);
