@@ -41,9 +41,9 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_OPENAI_API_KEY: ${{ secrets.VITE_OPENAI_API_KEY }}
+          VITE_SUPABASE_URL: https://pwsnbgwxxjtajpqcygaz.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3c25iZ3d4eGp0YWpwcWN5Z2F6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4OTg2OTcsImV4cCI6MjA4ODQ3NDY5N30.SV2yw_gpXT7hWKA_a8glxlPA9F02f3_SHIROL7w0up4
+          VITE_OPENAI_API_KEY: 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
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

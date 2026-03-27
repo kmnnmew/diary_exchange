@@ -7,7 +7,7 @@
       // GitHub Pages SPA redirect trick
       // Stores the full path in sessionStorage then redirects to the base URL.
       // index.html reads it back and restores the history state.
-      var base = '/diary-exchange/';
+      var base = '/diary_exchange/';
       var path = window.location.pathname.replace(base, '') + window.location.search + window.location.hash;
       sessionStorage.setItem('spa_redirect', base + path);
       window.location.replace(base);
