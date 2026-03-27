@@ -1,4 +1,3 @@
-import { openai } from './openai'
 import { supabase } from './supabase'
 
 // ── Persona metadata — single source of truth for id, label, description ─────
@@ -39,38 +38,14 @@ export async function generateAIComment(params: {
 }): Promise<string> {
   const { diaryContent, personaId, customPrompt, isAutoFallback } = params
 
-  const systemPrompt =
-    customPrompt ||
-    PERSONA_PROMPTS[personaId] ||
-    PERSONA_PROMPTS['friend']
-
-  // No API client → return fallback text immediately
-  if (!openai) {
-    console.warn('[ai] No OpenAI client available, using fallback reply.')
-    return FALLBACK_REPLIES[personaId] || FALLBACK_REPLIES['custom']
-  }
-
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 500,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: isAutoFallback
-            ? `다음 일기에 코멘트를 작성해주세요:\n\n${diaryContent}`
-            : `일기:\n\n${diaryContent}`,
-        },
-      ],
+    const { data, error } = await supabase.functions.invoke('ai-comment', {
+      body: { diaryContent, personaId, customPrompt, isAutoFallback },
     })
-    return (
-      response.choices[0]?.message?.content?.trim() ??
-      FALLBACK_REPLIES[personaId] ??
-      FALLBACK_REPLIES['custom']
-    )
+    if (error) throw error
+    return data?.comment ?? FALLBACK_REPLIES[personaId] ?? FALLBACK_REPLIES['custom']
   } catch (err) {
-    console.error('[ai] OpenAI error:', err)
+    console.error('[ai] Edge Function error:', err)
     return FALLBACK_REPLIES[personaId] || FALLBACK_REPLIES['custom']
   }
 }

@@ -1,6 +1,3 @@
-import OpenAI from 'openai'
-
-export const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
-})
+// OpenAI is now called server-side via Supabase Edge Function (ai-comment).
+// This file is kept as a placeholder to avoid breaking imports.
+export const openai = null;
