@@ -14,40 +14,43 @@ import { JoinGroup } from "./pages/JoinGroup";
 import { MainLayout } from "./components/MainLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
-export const router = createBrowserRouter([
-  {
-    path: "/",
-    Component: Landing,
-  },
-  {
-    path: "/auth",
-    Component: Auth,
-  },
-  {
-    path: "/app",
-    Component: ProtectedRoute,
-    children: [
-      {
-        Component: MainLayout,
-        children: [
-          { index: true, Component: Home },
-          { path: "write", Component: Write },
-          { path: "received", Component: Received },
-          { path: "group", Component: GroupExchange },
-          { path: "ai", Component: AIExchange },
-          { path: "archive", Component: Archive },
-          { path: "customize", Component: Customize },
-          { path: "mypage", Component: MyPage },
-        ],
-      },
-    ],
-  },
-  {
-    path: "/join/:inviteCode",
-    Component: JoinGroup,
-  },
-  {
-    path: "*",
-    Component: NotFound,
-  },
-]);
+export const router = createBrowserRouter(
+  [
+    {
+      path: "/",
+      Component: Landing,
+    },
+    {
+      path: "/auth",
+      Component: Auth,
+    },
+    {
+      path: "/app",
+      Component: ProtectedRoute,
+      children: [
+        {
+          Component: MainLayout,
+          children: [
+            { index: true, Component: Home },
+            { path: "write", Component: Write },
+            { path: "received", Component: Received },
+            { path: "group", Component: GroupExchange },
+            { path: "ai", Component: AIExchange },
+            { path: "archive", Component: Archive },
+            { path: "customize", Component: Customize },
+            { path: "mypage", Component: MyPage },
+          ],
+        },
+      ],
+    },
+    {
+      path: "/join/:inviteCode",
+      Component: JoinGroup,
+    },
+    {
+      path: "*",
+      Component: NotFound,
+    },
+  ],
+  { basename: import.meta.env.BASE_URL }
+);
