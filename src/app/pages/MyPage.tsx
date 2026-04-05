@@ -397,9 +397,12 @@ export function MyPage() {
                 </div>
                 <button
                   onClick={() => handleNotifToggle(item.key, !item.value)}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${item.value ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative overflow-hidden flex-shrink-0 ${item.value ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'}`}
                 >
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${item.value ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                  <span
+                    className="absolute top-[2px] w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200"
+                    style={{ left: item.value ? '22px' : '2px' }}
+                  />
                 </button>
               </div>
             ))}
