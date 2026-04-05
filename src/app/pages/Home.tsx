@@ -234,11 +234,18 @@ export function Home() {
               {effectiveDiaryStatus === 'completed' && '교환 완료 ✓'}
             </div>
           </div>
-          <Link to={effectiveDiaryStatus === 'unwritten' ? '/app/write' : '/app/archive'}>
-            <button className="w-full py-2.5 border border-[var(--line)] text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)] transition-colors rounded-[2px] font-sans text-[10pt]">
-              {effectiveDiaryStatus === 'unwritten' ? '일기 작성하기' : '확인하기'}
-            </button>
-          </Link>
+          <div className="flex gap-2">
+            <Link to={effectiveDiaryStatus === 'unwritten' ? '/app/write' : '/app/archive'} className="flex-1">
+              <button className="w-full py-2.5 border border-[var(--line)] text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)] transition-colors rounded-[2px] font-sans text-[10pt]">
+                {effectiveDiaryStatus === 'unwritten' ? '일기 작성하기' : '확인하기'}
+              </button>
+            </Link>
+            <Link to="/app/received">
+              <button className="py-2.5 px-4 border border-[var(--line)] text-[var(--text-muted)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)] transition-colors rounded-[2px] font-sans text-[10pt] whitespace-nowrap">
+                코멘트 달기
+              </button>
+            </Link>
+          </div>
         </div>
 
         {/* 그룹 일기 */}
