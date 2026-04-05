@@ -93,9 +93,16 @@ export function Home() {
     fetchLastAiDiary();
   }, [user?.id]);
 
-  const groupCount = (() => {
-    try { return JSON.parse(localStorage.getItem('myGroups') || '[]').length; } catch { return 0; }
-  })();
+  const [groupCount, setGroupCount] = useState(0);
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('group_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .then(({ count }) => setGroupCount(count ?? 0));
+  }, [user?.id]);
 
   const recentEntries = archiveEntries.slice(0, 3);
   const typeLabel: Record<string, string> = { anonymous: '익명', group: '그룹', ai: 'AI' };
