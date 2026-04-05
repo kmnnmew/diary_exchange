@@ -61,6 +61,8 @@ interface AppContextType {
 
   // Archive entries
   archiveEntries: ArchiveEntry[];
+  archiveLoading: boolean;
+  refetchArchive: () => void;
   addArchiveEntry: (e: Omit<ArchiveEntry, 'id'>) => string;
   updateArchiveEntry: (id: string, update: Partial<ArchiveEntry>) => void;
 
@@ -100,8 +102,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem('aiDiaryDate') === today;
   });
 
-  // ── Archive — populated by Archive page from Supabase ────────────────────
+  // ── Archive — loaded from Supabase ───────────────────────────────────────
   const [archiveEntries, setArchiveEntries] = useState<ArchiveEntry[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(true);
+
+  const fetchArchiveEntries = async (uid: string) => {
+    setArchiveLoading(true);
+    const { data, error } = await supabase
+      .from('diaries')
+      .select(`id, created_date, title, content, exchange_mode, emotion, paper_design, stamp, status, comments ( content, is_ai_generated, created_at )`)
+      .eq('author_id', uid)
+      .order('created_at', { ascending: false });
+    if (!error && data) {
+      setArchiveEntries(data.map(d => {
+        const comments = d.comments as any[];
+        const humanComment = comments.find(c => !c.is_ai_generated);
+        const aiComment = comments.find(c => c.is_ai_generated);
+        const active = humanComment ?? aiComment;
+        return {
+          id: d.id,
+          date: d.created_date,
+          title: d.title ?? undefined,
+          content: d.content,
+          type: d.exchange_mode as ArchiveEntry['type'],
+          emotion: d.emotion ?? undefined,
+          paper_design: (d as any).paper_design ?? undefined,
+          stamp: d.stamp ?? undefined,
+          status: d.status === 'completed' ? 'completed' : 'waiting',
+          comment: active?.content ?? undefined,
+          isAiComment: !humanComment && !!aiComment,
+        };
+      }));
+    }
+    setArchiveLoading(false);
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchArchiveEntries(user.id);
+    } else {
+      setArchiveEntries([]);
+      setArchiveLoading(false);
+    }
+  }, [user?.id]);
 
   // ── Clear stale diary-status localStorage keys on every mount ────────────
   useEffect(() => {
@@ -244,22 +287,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (v) localStorage.setItem('aiDiaryDate', new Date().toDateString());
   };
 
-  const addArchiveEntry = (e: Omit<ArchiveEntry, 'id'>): string => {
-    const id = `entry-${Date.now()}`;
-    setArchiveEntries(prev => {
-      const updated = [{ ...e, id }, ...prev];
-      localStorage.setItem('archiveEntries', JSON.stringify(updated));
-      return updated;
-    });
-    return id;
+  const addArchiveEntry = (_e: Omit<ArchiveEntry, 'id'>): string => {
+    // Data is now loaded from Supabase; trigger a refetch instead
+    if (user) fetchArchiveEntries(user.id);
+    return '';
   };
 
-  const updateArchiveEntry = (id: string, update: Partial<ArchiveEntry>) => {
-    setArchiveEntries(prev => {
-      const updated = prev.map(e => e.id === id ? { ...e, ...update } : e);
-      localStorage.setItem('archiveEntries', JSON.stringify(updated));
-      return updated;
-    });
+  const updateArchiveEntry = (_id: string, _update: Partial<ArchiveEntry>) => {
+    if (user) fetchArchiveEntries(user.id);
   };
 
   const setNickname = (n: string) => {
@@ -289,6 +324,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       aiDiaryWrittenToday,
       setAiDiaryWrittenToday: setAiDiaryWrittenTodayAndSave,
       archiveEntries,
+      archiveLoading,
+      refetchArchive: () => { if (user) fetchArchiveEntries(user.id); },
       addArchiveEntry,
       updateArchiveEntry,
       nickname,

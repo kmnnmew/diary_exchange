@@ -20,7 +20,7 @@ export function Write() {
     setDiaryStatus,
     setTodayDiary,
     addNotification,
-    addArchiveEntry,
+    refetchArchive,
   } = useApp();
 
   const [content, setContent] = useState("");
@@ -159,16 +159,7 @@ export function Write() {
       });
       toast.success("일기가 전송되었습니다. 답장을 기다려보세요!");
 
-      // Keep localStorage archive in sync (Archive page still uses localStorage)
-      addArchiveEntry({
-        date:    new Date().toISOString().split('T')[0],
-        title:   title   || undefined,
-        content,
-        type:    'anonymous',
-        emotion: decoration.emotion || undefined,
-        stamp:   decoration.stamp   || undefined,
-        status:  'waiting',
-      });
+      refetchArchive();
     } catch (err: any) {
       toast.custom((t) => (
         <div className="bg-[#F5E6D8] border-l-4 border-red-500 p-4 shadow-md flex items-start gap-3 w-[360px]">

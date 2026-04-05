@@ -31,7 +31,7 @@ interface Group {
 
 
 export function GroupExchange() {
-  const { setGroupDiaryWrittenToday, addArchiveEntry, user } = useApp();
+  const { setGroupDiaryWrittenToday, refetchArchive, user } = useApp();
   const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
   const [view, setView] = useState<ViewState>('list');
@@ -738,15 +738,7 @@ export function GroupExchange() {
                         toast.error(result.error || "일기 전송에 실패했습니다.");
                         return;
                       }
-                      addArchiveEntry({
-                        date: new Date().toISOString().split('T')[0],
-                        content: writeContent,
-                        type: 'group',
-                        emotion: decoration.emotion || undefined,
-                        stamp: decoration.stamp || undefined,
-                        status: 'waiting',
-                        groupName: selectedGroup?.name,
-                      });
+                      refetchArchive();
                       setMyGroups(prev =>
                         prev.map(g =>
                           g.id === selectedGroup?.id ? { ...g, status: 'completed' as const } : g

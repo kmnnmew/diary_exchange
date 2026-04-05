@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, User, Users, Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import type { ArchiveEntry } from "../context/AppContext";
-import { supabase } from "../../lib/supabase";
 import { getPaperStyle, getEmotionInfo } from "../components/DiaryDecoratorPanel";
 
 type DiaryType = 'anonymous' | 'group' | 'ai';
@@ -30,71 +29,11 @@ function formatDate(dateStr: string) {
 }
 
 export function Archive() {
-  const { user } = useApp();
+  const { archiveEntries, archiveLoading: loading } = useApp();
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [activeFilter, setActiveFilter] = useState<'all' | DiaryType>('all');
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedDiary, setSelectedDiary] = useState<any>(null);
-
-  // Real data from Supabase (replaces localStorage archiveEntries)
-  const [archiveEntries, setArchiveEntries] = useState<ArchiveEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    supabase
-      .from('diaries')
-      .select(`
-        id,
-        created_date,
-        title,
-        content,
-        exchange_mode,
-        emotion,
-        paper_design,
-        stamp,
-        status,
-        comments (
-          content,
-          is_ai_generated,
-          created_at
-        )
-      `)
-      .eq('author_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Archive fetch error:', error);
-        } else {
-          const entries: ArchiveEntry[] = (data ?? []).map(d => {
-            const comments = d.comments as any[];
-            // Prefer a human-written comment; fall back to AI-generated one
-            const humanComment = comments.find(c => !c.is_ai_generated);
-            const aiComment   = comments.find(c => c.is_ai_generated);
-            const activeComment = humanComment ?? aiComment;
-            return {
-              id: d.id,
-              date: d.created_date,
-              title: d.title ?? undefined,
-              content: d.content,
-              type: d.exchange_mode as ArchiveEntry['type'],
-              emotion: d.emotion ?? undefined,
-              paper_design: (d as any).paper_design ?? undefined,
-              stamp: d.stamp ?? undefined,
-              status: d.status === 'completed' ? 'completed' : 'waiting',
-              comment: activeComment?.content ?? undefined,
-              isAiComment: !humanComment && !!aiComment,
-            };
-          });
-          setArchiveEntries(entries);
-        }
-        setLoading(false);
-      });
-  }, [user?.id]);
 
   const handleDiaryClick = (diary: any) => {
     setSelectedDiary(diary);
