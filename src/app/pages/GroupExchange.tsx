@@ -764,8 +764,8 @@ export function GroupExchange() {
 
         {activeTab === 'write' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* 이미 작성한 경우 */}
             {todayGroupDiary ? (
+              /* 이미 작성한 경우 — 완료 화면 */
               <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
                 <div className="text-[40px]">✓</div>
                 <p className="text-[18pt] font-serif text-[var(--secondary)]">오늘의 일기를 작성했어요.</p>
@@ -778,110 +778,111 @@ export function GroupExchange() {
                 </button>
               </div>
             ) : (
-            /* Editor with decoration */
-            <div className="relative min-h-[500px] border border-[var(--line)] shadow-sm" style={paperStyle}>
-              {(decoration.paper === 'lined' || decoration.paper === 'vintage') && (
-                <div className="absolute left-12 top-0 bottom-0 w-px bg-[var(--accent)] opacity-30" />
-              )}
-              {decoration.stamp && (
-                <div className="absolute top-6 right-8 text-[36px] opacity-60 rotate-12 pointer-events-none select-none z-10">
-                  {decoration.stamp}
-                </div>
-              )}
-
-              <div className="relative z-10 p-12">
-                {emotionInfo && (
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-[18px]">{emotionInfo.emoji}</span>
-                    <span className="font-mono text-[9pt] px-3 py-1 rounded-full text-white" style={{ backgroundColor: emotionInfo.color }}>
-                      {emotionInfo.id}
-                    </span>
+              /* 작성 에디터 */
+              <>
+                <div className="relative min-h-[500px] border border-[var(--line)] shadow-sm" style={paperStyle}>
+                  {(decoration.paper === 'lined' || decoration.paper === 'vintage') && (
+                    <div className="absolute left-12 top-0 bottom-0 w-px bg-[var(--accent)] opacity-30" />
+                  )}
+                  {decoration.stamp && (
+                    <div className="absolute top-6 right-8 text-[36px] opacity-60 rotate-12 pointer-events-none select-none z-10">
+                      {decoration.stamp}
+                    </div>
+                  )}
+                  <div className="relative z-10 p-12">
+                    {emotionInfo && (
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-[18px]">{emotionInfo.emoji}</span>
+                        <span className="font-mono text-[9pt] px-3 py-1 rounded-full text-white" style={{ backgroundColor: emotionInfo.color }}>
+                          {emotionInfo.id}
+                        </span>
+                      </div>
+                    )}
+                    <div className="font-mono text-[10pt] text-[var(--text-muted)] mb-8">{today}</div>
+                    <textarea
+                      value={writeContent}
+                      onChange={(e) => setWriteContent(e.target.value)}
+                      placeholder="그룹 멤버들에게 오늘 하루를 공유해보세요..."
+                      className="w-full h-[350px] bg-transparent outline-none resize-none font-serif text-[15pt] leading-[2.0]"
+                    />
                   </div>
-                )}
-                <div className="font-mono text-[10pt] text-[var(--text-muted)] mb-8">{today}</div>
-                <textarea
-                  value={writeContent}
-                  onChange={(e) => setWriteContent(e.target.value)}
-                  placeholder="그룹 멤버들에게 오늘 하루를 공유해보세요..."
-                  className="w-full h-[350px] bg-transparent outline-none resize-none font-serif text-[15pt] leading-[2.0]"
-                />
-              </div>
-            </div>
-
-            {/* Toolbar */}
-            <div className="fixed bottom-0 left-[64px] right-0 bg-[var(--bg)] border-t border-[var(--line)] z-40">
-              <div className="relative">
-                <DiaryDecoratorPanel
-                  activePanel={activePanel}
-                  decoration={decoration}
-                  onChange={setDecoration}
-                  onClose={() => setActivePanel(null)}
-                />
-                <div className="h-14 flex items-center justify-between px-8">
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => togglePanel('paper')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${activePanel === 'paper' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg)] text-[var(--text-primary)]'}`}
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span className="text-[10pt]">종이</span>
-                    </button>
-                    <button
-                      onClick={() => togglePanel('stamp')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${activePanel === 'stamp' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg)] text-[var(--text-primary)]'}`}
-                    >
-                      <Stamp className="w-4 h-4" />
-                      <span className="text-[10pt]">스탬프</span>
-                      {decoration.stamp && <span className="text-[12px]">{decoration.stamp}</span>}
-                    </button>
-                    <button
-                      onClick={() => togglePanel('emotion')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${activePanel === 'emotion' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg)] text-[var(--text-primary)]'}`}
-                    >
-                      <Heart className="w-4 h-4" />
-                      <span className="text-[10pt]">감정</span>
-                      {emotionInfo && <span className="text-[12px]">{emotionInfo.emoji}</span>}
-                    </button>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      if (/(.)\1{4,}/.test(writeContent)) {
-                        toast.error("의미 없는 반복 문자는 전송할 수 없습니다. 내용을 조금 더 작성해주세요.");
-                        return;
-                      }
-                      if (!user?.id || !selectedGroup?.id) return;
-                      const result = await submitGroupDiary({
-                        groupId: String(selectedGroup.id),
-                        userId: user.id,
-                        content: writeContent,
-                        emotion: decoration.emotion || undefined,
-                        stamp: decoration.stamp || undefined,
-                        paper: decoration.paper,
-                      });
-                      if (!result.success) {
-                        toast.error(result.error || "일기 전송에 실패했습니다.");
-                        return;
-                      }
-                      refetchArchive();
-                      setMyGroups(prev =>
-                        prev.map(g =>
-                          g.id === selectedGroup?.id ? { ...g, status: 'completed' as const } : g
-                        )
-                      );
-                      setTodayGroupDiary({ id: result.diaryId!, status: 'waiting' });
-                      toast.success("그룹에 일기를 전송했습니다.");
-                      setWriteContent("");
-                      setGroupDiaryWrittenToday(true);
-                      setActiveTab('status');
-                    }}
-                    disabled={writeContent.length === 0}
-                    className="bg-[var(--accent)] text-white px-8 py-2 rounded-[2px] text-[10pt] hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50"
-                  >
-                    그룹에 전송하기
-                  </button>
                 </div>
-              </div>
-            </div>
+
+                {/* Toolbar */}
+                <div className="fixed bottom-0 left-[64px] right-0 bg-[var(--bg)] border-t border-[var(--line)] z-40">
+                  <div className="relative">
+                    <DiaryDecoratorPanel
+                      activePanel={activePanel}
+                      decoration={decoration}
+                      onChange={setDecoration}
+                      onClose={() => setActivePanel(null)}
+                    />
+                    <div className="h-14 flex items-center justify-between px-8">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => togglePanel('paper')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${activePanel === 'paper' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg)] text-[var(--text-primary)]'}`}
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span className="text-[10pt]">종이</span>
+                        </button>
+                        <button
+                          onClick={() => togglePanel('stamp')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${activePanel === 'stamp' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg)] text-[var(--text-primary)]'}`}
+                        >
+                          <Stamp className="w-4 h-4" />
+                          <span className="text-[10pt]">스탬프</span>
+                          {decoration.stamp && <span className="text-[12px]">{decoration.stamp}</span>}
+                        </button>
+                        <button
+                          onClick={() => togglePanel('emotion')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${activePanel === 'emotion' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg)] text-[var(--text-primary)]'}`}
+                        >
+                          <Heart className="w-4 h-4" />
+                          <span className="text-[10pt]">감정</span>
+                          {emotionInfo && <span className="text-[12px]">{emotionInfo.emoji}</span>}
+                        </button>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (/(.)\1{4,}/.test(writeContent)) {
+                            toast.error("의미 없는 반복 문자는 전송할 수 없습니다.");
+                            return;
+                          }
+                          if (!user?.id || !selectedGroup?.id) return;
+                          const result = await submitGroupDiary({
+                            groupId: String(selectedGroup.id),
+                            userId: user.id,
+                            content: writeContent,
+                            emotion: decoration.emotion || undefined,
+                            stamp: decoration.stamp || undefined,
+                            paper: decoration.paper,
+                          });
+                          if (!result.success) {
+                            toast.error(result.error || "일기 전송에 실패했습니다.");
+                            return;
+                          }
+                          refetchArchive();
+                          setMyGroups(prev =>
+                            prev.map(g =>
+                              g.id === selectedGroup?.id ? { ...g, status: 'completed' as const } : g
+                            )
+                          );
+                          setTodayGroupDiary({ id: result.diaryId!, status: 'waiting' });
+                          toast.success("그룹에 일기를 전송했습니다.");
+                          setWriteContent("");
+                          setGroupDiaryWrittenToday(true);
+                          setActiveTab('status');
+                        }}
+                        disabled={writeContent.length === 0}
+                        className="bg-[var(--accent)] text-white px-8 py-2 rounded-[2px] text-[10pt] hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50"
+                      >
+                        그룹에 전송하기
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}
