@@ -148,12 +148,13 @@ export function GroupExchange() {
 
       if (error || !data) return;
 
-      // Fetch today's group diaries for all members in this group
+      // Fetch today's group diaries for members in THIS specific group
       const memberIds = data.map((m: any) => m.user_id);
       const { data: todayDiaries } = await supabase
         .from('diaries')
         .select('author_id, status')
         .eq('exchange_mode', 'group')
+        .eq('group_id', selectedGroup.id)
         .eq('created_date', kstToday)
         .in('author_id', memberIds);
 
@@ -763,7 +764,21 @@ export function GroupExchange() {
 
         {activeTab === 'write' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Editor with decoration */}
+            {/* 이미 작성한 경우 */}
+            {todayGroupDiary ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+                <div className="text-[40px]">✓</div>
+                <p className="text-[18pt] font-serif text-[var(--secondary)]">오늘의 일기를 작성했어요.</p>
+                <p className="text-[11pt] font-mono text-[var(--text-muted)]">내일 다시 작성할 수 있어요.</p>
+                <button
+                  onClick={() => setActiveTab('status')}
+                  className="mt-4 px-6 py-2 border border-[var(--line)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors rounded-[2px] font-mono text-[10pt]"
+                >
+                  교환 현황 보기
+                </button>
+              </div>
+            ) : (
+            /* Editor with decoration */
             <div className="relative min-h-[500px] border border-[var(--line)] shadow-sm" style={paperStyle}>
               {(decoration.paper === 'lined' || decoration.paper === 'vintage') && (
                 <div className="absolute left-12 top-0 bottom-0 w-px bg-[var(--accent)] opacity-30" />
@@ -867,6 +882,7 @@ export function GroupExchange() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
 
