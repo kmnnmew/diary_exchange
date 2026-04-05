@@ -132,7 +132,7 @@ export function GroupExchange() {
       })));
     }
     fetchAvailableGroups();
-  }, []);
+  }, [user?.id]);
 
   // Fetch members when a group is selected
   useEffect(() => {
