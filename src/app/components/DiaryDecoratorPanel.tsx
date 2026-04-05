@@ -20,7 +20,7 @@ interface DiaryDecoratorPanelProps {
   onClose: () => void;
 }
 
-const PAPER_OPTIONS = [
+export const PAPER_OPTIONS = [
   {
     id: 'lined' as const,
     label: '줄지 노트',
@@ -53,7 +53,7 @@ const PAPER_OPTIONS = [
   },
 ];
 
-const STAMP_OPTIONS = [
+export const STAMP_OPTIONS = [
   { id: '📮', label: '우체통' },
   { id: '🌸', label: '벚꽃' },
   { id: '☁️', label: '구름' },

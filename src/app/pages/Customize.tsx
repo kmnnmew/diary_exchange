@@ -1,57 +1,26 @@
 import { useState } from "react";
-import { Lock, Sun, Moon, Flower2, Check } from "lucide-react";
+import { Sun, Moon, Flower2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useApp, type ThemeType } from "../context/AppContext";
-import { useAuth } from "../../hooks/useAuth";
+import { PAPER_OPTIONS, STAMP_OPTIONS, getPaperStyle } from "../components/DiaryDecoratorPanel";
+import type { DiaryDecoration } from "../components/DiaryDecoratorPanel";
 
 export function Customize() {
   const { theme, setTheme } = useApp();
-  const { profile } = useAuth();
-  const isUserPremium = profile?.subscription_type === 'premium';
 
-  const [selectedPaper, setSelectedPaper] = useState(() => {
-    return localStorage.getItem('defaultPaper') || 'lined';
+  const [selectedPaper, setSelectedPaper] = useState<DiaryDecoration['paper']>(() => {
+    return (localStorage.getItem('defaultPaper') as DiaryDecoration['paper']) || 'lined';
   });
   const [selectedStamp, setSelectedStamp] = useState<string | null>(() => {
     return localStorage.getItem('defaultStamp') || null;
   });
   const [selectedTheme, setSelectedTheme] = useState<ThemeType>(theme);
-  const [stampCategory, setStampCategory] = useState<'emotion' | 'weather' | 'date' | 'sticker'>('emotion');
 
   const saveSettings = () => {
     localStorage.setItem('defaultPaper', selectedPaper);
     localStorage.setItem('defaultStamp', selectedStamp || '');
     setTheme(selectedTheme);
     toast.success("꾸미기 설정이 저장되었습니다!");
-  };
-
-  const paperDesigns = [
-    { id: 'lined',   name: '줄지 노트',  premium: false },
-    { id: 'grid',    name: '모눈 노트',  premium: false },
-    { id: 'dot',     name: '점선 노트',  premium: false },
-    { id: 'plain',   name: '무지 노트',  premium: false },
-    { id: 'vintage', name: '빈티지 노트', premium: false },
-    { id: 'pastel',  name: '파스텔',     premium: !isUserPremium },
-    { id: 'spring',  name: '봄 한정',    premium: !isUserPremium },
-    { id: 'summer',  name: '여름 한정',  premium: !isUserPremium },
-  ];
-
-  const stamps = {
-    emotion: ['😊', '😢', '😡', '😴', '🤔', '😍', '😱', '🥰'],
-    weather: ['☀️', '🌤️', '☁️', '🌧️', '⛈️', '🌈', '❄️', '🌙'],
-    date: ['📅', '📆', '🗓️', '⏰', '📮', '✉️', '🌸', '☁️'],
-    sticker: ['🌿', '🍃', '⭐', '🦋', '☕', '🕯️', '📚', '🌙'],
-  };
-
-  const getPaperPreview = (paperId: string): React.CSSProperties => {
-    switch (paperId) {
-      case 'lined': return { backgroundImage: 'repeating-linear-gradient(transparent, transparent 15px, var(--pattern-line) 15px, var(--pattern-line) 16px)', backgroundColor: 'var(--surface)' };
-      case 'grid': return { backgroundImage: 'repeating-linear-gradient(var(--pattern-line) 0, var(--pattern-line) 1px, transparent 0, transparent 16px), repeating-linear-gradient(90deg, var(--pattern-line) 0, var(--pattern-line) 1px, transparent 0, transparent 16px)', backgroundColor: 'var(--surface)', backgroundSize: '16px 16px' };
-      case 'dot': return { backgroundImage: 'radial-gradient(circle, var(--pattern-line) 1px, transparent 1px)', backgroundSize: '16px 16px', backgroundColor: 'var(--surface)' };
-      case 'plain': return { backgroundColor: 'var(--surface)' };
-      case 'vintage': return { backgroundImage: 'repeating-linear-gradient(transparent, transparent 15px, var(--pattern-line) 15px, var(--pattern-line) 16px)', backgroundColor: 'var(--surface)' };
-      default: return { backgroundColor: 'var(--surface)' };
-    }
   };
 
   const themeOptions: {
@@ -95,7 +64,7 @@ export function Customize() {
             <h2 className="text-[16pt] font-serif mb-4">미리보기</h2>
             <div
               className="border border-[var(--line)] rounded-[4px] p-8 aspect-[3/4] relative overflow-hidden shadow-sm"
-              style={getPaperPreview(selectedPaper)}
+              style={getPaperStyle(selectedPaper)}
             >
               <div className="text-[10pt] text-[var(--text-muted)] mb-6 font-mono" style={{ color: '#9A7486' }}>
                 {new Date().getFullYear()}.{String(new Date().getMonth() + 1).padStart(2, '0')}.{String(new Date().getDate()).padStart(2, '0')}
@@ -163,31 +132,25 @@ export function Customize() {
           <div>
             <h3 className="text-[16pt] font-serif mb-4">종이 디자인</h3>
             <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-              {paperDesigns.map((paper) => (
+              {PAPER_OPTIONS.map((paper) => (
                 <button
                   key={paper.id}
-                  onClick={() => !paper.premium && setSelectedPaper(paper.id)}
-                  disabled={paper.premium}
-                  className={`relative min-w-[100px] h-28 border-2 rounded-[4px] transition-all flex-shrink-0 ${
+                  onClick={() => setSelectedPaper(paper.id)}
+                  className={`relative min-w-[100px] h-28 border-2 rounded-[4px] transition-all flex-shrink-0 cursor-pointer ${
                     selectedPaper === paper.id
                       ? 'border-[var(--accent)]'
                       : 'border-[var(--line)] hover:border-[var(--accent)]/50'
-                  } ${paper.premium ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  style={getPaperPreview(paper.id)}
+                  }`}
+                  style={getPaperStyle(paper.id)}
                 >
-                  {paper.premium && (
-                    <div className="absolute top-2 right-2 bg-white/80 rounded-full p-1">
-                      <Lock className="w-3 h-3 text-gray-500" />
-                    </div>
-                  )}
-                  {selectedPaper === paper.id && !paper.premium && (
+                  {selectedPaper === paper.id && (
                     <div className="absolute top-2 right-2 w-4 h-4 bg-[var(--accent)] rounded-full flex items-center justify-center">
                       <Check className="w-2.5 h-2.5 text-white" />
                     </div>
                   )}
                   <div className="absolute bottom-2 left-0 right-0 text-center">
                     <span className="text-[9pt] bg-white/80 px-2 py-0.5 rounded font-mono text-gray-600">
-                      {paper.name}
+                      {paper.label}
                     </span>
                   </div>
                 </button>
@@ -198,25 +161,6 @@ export function Customize() {
           {/* 스탬프 선택 */}
           <div>
             <h3 className="text-[16pt] font-serif mb-4">스탬프 & 스티커</h3>
-
-            {/* 카테고리 탭 */}
-            <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide">
-              {(Object.keys(stamps) as Array<keyof typeof stamps>).map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setStampCategory(cat)}
-                  className={`px-3 py-1.5 border rounded-full transition-colors font-mono text-[9pt] whitespace-nowrap ${
-                    stampCategory === cat
-                      ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
-                      : 'border-[var(--line)] text-[var(--text-muted)] hover:border-[var(--accent)]/50'
-                  }`}
-                >
-                  {cat === 'emotion' ? '감정' : cat === 'weather' ? '날씨' : cat === 'date' ? '날짜' : '스티커'}
-                </button>
-              ))}
-            </div>
-
-            {/* 스탬프 그리드 */}
             <div className="grid grid-cols-4 gap-3">
               <button
                 onClick={() => setSelectedStamp(null)}
@@ -226,16 +170,17 @@ export function Customize() {
               >
                 없음
               </button>
-              {stamps[stampCategory].map((stamp, index) => (
+              {STAMP_OPTIONS.map((opt) => (
                 <button
-                  key={index}
-                  onClick={() => setSelectedStamp(stamp)}
-                  className={`aspect-square flex items-center justify-center text-3xl border-2 rounded-[4px] hover:border-[var(--accent)] transition-colors relative ${
-                    selectedStamp === stamp ? 'border-[var(--accent)] bg-[var(--accent)]/5' : 'border-[var(--line)]'
+                  key={opt.id}
+                  onClick={() => setSelectedStamp(opt.id)}
+                  className={`aspect-square flex flex-col items-center justify-center gap-0.5 border-2 rounded-[4px] hover:border-[var(--accent)] transition-colors relative ${
+                    selectedStamp === opt.id ? 'border-[var(--accent)] bg-[var(--accent)]/5' : 'border-[var(--line)]'
                   }`}
                 >
-                  {stamp}
-                  {selectedStamp === stamp && (
+                  <span className="text-[24px] leading-none">{opt.id}</span>
+                  <span className="font-mono text-[7pt] text-[var(--text-muted)]">{opt.label}</span>
+                  {selectedStamp === opt.id && (
                     <div className="absolute top-1 right-1 w-3 h-3 bg-[var(--accent)] rounded-full flex items-center justify-center">
                       <Check className="w-2 h-2 text-white" />
                     </div>
