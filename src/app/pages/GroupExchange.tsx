@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Users, Plus, ArrowLeft, Settings, Lock, Unlock, FileText, Stamp, Heart, Globe, ChevronDown, AlertCircle, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
-import { createGroup, getPublicGroups, getMyGroups, joinGroup, submitGroupDiary, leaveGroup } from "../../lib/groups";
+import { createGroup, getPublicGroups, getMyGroups, joinGroup, joinGroupByInviteCode, submitGroupDiary, leaveGroup, getGroupReceivedDiaries, type ReceivedGroupDiary } from "../../lib/groups";
 import { useApp } from "../context/AppContext";
 import {
   DiaryDecoratorPanel,
@@ -66,6 +66,13 @@ export function GroupExchange() {
 
   // Member management dropdown
   const [openMemberDropdown, setOpenMemberDropdown] = useState<string | null>(null);
+
+  // Received group diaries (diaries from other members assigned to me)
+  const [receivedGroupDiaries, setReceivedGroupDiaries] = useState<ReceivedGroupDiary[]>([]);
+
+  // Invite code join
+  const [inviteCodeInput, setInviteCodeInput] = useState("");
+  const [invitePasswordInput, setInvitePasswordInput] = useState("");
 
   // My groups — loaded from Supabase
   const [myGroups, setMyGroups] = useState<Group[]>([]);
@@ -193,6 +200,13 @@ export function GroupExchange() {
     fetchTodayDiary();
   }, [selectedGroup?.id, user?.id]);
 
+  // Load diaries assigned to me in this group
+  useEffect(() => {
+    setReceivedGroupDiaries([]);
+    if (!selectedGroup?.id || !user?.id) return;
+    getGroupReceivedDiaries(String(selectedGroup.id), user.id).then(setReceivedGroupDiaries);
+  }, [selectedGroup?.id, user?.id]);
+
   const handleGroupClick = (group: any) => {
     setSelectedGroup(group);
     setView('detail');
@@ -246,6 +260,8 @@ export function GroupExchange() {
 
   const handleDiaryClick = (diary: any) => {
     setSelectedDiary(diary);
+    setReceivedComment("");
+    setReceivedCommentSent(false);
     setView('received');
   };
 
@@ -292,6 +308,32 @@ export function GroupExchange() {
 
         {/* My Groups Grid */}
         {listTab === 'mine' && (
+          <>
+          {/* 초대 코드로 참여 */}
+          <div className="mb-6 flex gap-2">
+            <input
+              type="text"
+              value={inviteCodeInput}
+              onChange={(e) => setInviteCodeInput(e.target.value)}
+              placeholder="초대 코드 입력 (8자리)"
+              className="flex-1 border border-[var(--line)] bg-[var(--surface)] px-4 py-2 font-mono text-[11pt] outline-none focus:border-[var(--accent)] rounded-[2px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+            />
+            <button
+              onClick={async () => {
+                if (!user?.id || !inviteCodeInput.trim()) return;
+                const result = await joinGroupByInviteCode(inviteCodeInput.trim(), user.id, invitePasswordInput || undefined);
+                if (!result.success) { toast.error(result.error || "참여에 실패했습니다."); return; }
+                const groups = await getMyGroups(user.id);
+                setMyGroups(groups.map(g => ({ id: g.id, name: g.name, members: g.member_count, max: g.max_members, isOwner: g.is_owner, status: 'waiting' as const, comments: 0, isPrivate: g.is_private, desc: g.description, inviteCode: g.invite_code })));
+                setInviteCodeInput("");
+                setInvitePasswordInput("");
+                toast.success("그룹에 참여했습니다!");
+              }}
+              className="px-5 py-2 bg-[var(--accent)] text-white rounded-[2px] font-mono text-[10pt] hover:bg-[var(--accent)]/90 transition-colors whitespace-nowrap"
+            >
+              코드로 참여
+            </button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {myGroups.map(group => (
               <div
@@ -328,6 +370,7 @@ export function GroupExchange() {
               </div>
             ))}
           </div>
+          </>
         )}
 
         {/* Available Groups */}
@@ -336,7 +379,7 @@ export function GroupExchange() {
             <p className="text-[10pt] font-mono text-[var(--text-muted)] mb-6">
               공개된 그룹에 참여해 함께 일기를 교환해보세요.
             </p>
-            {availableGroups.map(group => (
+            {availableGroups.filter(g => !myGroups.some(m => m.id === String(g.id))).map(group => (
               <div
                 key={group.id}
                 className="border border-[var(--line)] p-5 bg-[var(--surface)] hover:border-[var(--accent)] transition-colors rounded-[4px] flex items-center justify-between group"
@@ -591,6 +634,57 @@ export function GroupExchange() {
                 {todayGroupDiary ? '전달 완료' : '아직 작성 전'}
               </div>
             </div>
+
+            {/* Received diaries — needs comment */}
+            {receivedGroupDiaries.filter(d => !d.hasCommented).length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4 border-b border-[var(--accent)]/30 pb-2">
+                  <h3 className="text-[14pt] font-serif text-[var(--accent)]">📬 답장 대기 중</h3>
+                  <span className="text-[9pt] font-mono bg-[var(--accent)] text-white px-2 py-0.5 rounded-full">
+                    {receivedGroupDiaries.filter(d => !d.hasCommented).length}건
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {receivedGroupDiaries.filter(d => !d.hasCommented).map(rd => (
+                    <button
+                      key={rd.cycleId}
+                      onClick={() => handleDiaryClick({ id: rd.diaryId, date: rd.created_date, content: rd.content, emotion: rd.emotion, stamp: rd.stamp, paper_design: rd.paper_design, senderName: rd.senderName })}
+                      className="w-full text-left border border-[var(--accent)]/40 bg-[var(--accent)]/5 hover:bg-[var(--accent)]/10 p-4 rounded-[4px] transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-serif text-[12pt] text-[var(--accent)]">{rd.senderName}의 일기</span>
+                        <span className="font-mono text-[9pt] text-[var(--text-muted)]">{rd.matchDate}</span>
+                      </div>
+                      <p className="font-serif text-[11pt] text-[var(--text-muted)] line-clamp-2">{rd.content}</p>
+                      <div className="mt-2 text-[9pt] font-mono text-[var(--accent)]">답장 쓰기 →</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Completed received diaries */}
+            {receivedGroupDiaries.filter(d => d.hasCommented).length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4 border-b border-[var(--line)] pb-2">
+                  <h3 className="text-[14pt] font-serif text-[var(--secondary)]">✓ 답장 완료</h3>
+                </div>
+                <div className="space-y-2">
+                  {receivedGroupDiaries.filter(d => d.hasCommented).map(rd => (
+                    <button
+                      key={rd.cycleId}
+                      onClick={() => handleDiaryClick({ id: rd.diaryId, date: rd.created_date, content: rd.content, emotion: rd.emotion, stamp: rd.stamp, paper_design: rd.paper_design, senderName: rd.senderName })}
+                      className="w-full text-left border border-[var(--line)] p-4 rounded-[4px] hover:border-[var(--accent)]/30 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-serif text-[11pt] text-[var(--text-muted)]">{rd.senderName}의 일기 — {rd.matchDate}</span>
+                        <span className="font-mono text-[9pt] text-[var(--secondary)]">완료</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Member List */}
             <div>
@@ -851,7 +945,7 @@ export function GroupExchange() {
             <button onClick={() => setView('detail')} className="hover:text-[var(--accent)] transition-colors">
               <ArrowLeft className="w-6 h-6 stroke-[1.5]" />
             </button>
-            <span className="font-mono text-[11pt] text-[var(--text-muted)]">{selectedGroup?.name}의 멤버로부터</span>
+            <span className="font-mono text-[11pt] text-[var(--text-muted)]">{selectedDiary?.senderName ?? '멤버'}의 일기 — {selectedGroup?.name}</span>
           </div>
           <span className="font-mono text-[10pt] text-[var(--text-muted)]">{selectedDiary?.date || '2026. 03. 01'}</span>
         </div>
@@ -923,13 +1017,30 @@ export function GroupExchange() {
                 </div>
               )}
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (receivedComment.length < 30) return;
                   if (/(.)\1{4,}/.test(receivedComment)) {
-                    toast.error("의미 없는 반복 문자는 전송할 수 없습니다. 내용을 조금 더 작성해주세요.");
+                    toast.error("의미 없는 반복 문자는 전송할 수 없습니다.");
                     return;
                   }
+                  if (!user?.id || !selectedDiary?.id) return;
+                  const { error } = await supabase.from('comments').insert({
+                    diary_id: selectedDiary.id,
+                    author_id: user.id,
+                    content: receivedComment,
+                    is_ai_generated: false,
+                  });
+                  if (error) {
+                    toast.error("전송에 실패했습니다. 다시 시도해주세요.");
+                    return;
+                  }
+                  // Update diary status to completed
+                  await supabase.from('diaries').update({ status: 'completed' }).eq('id', selectedDiary.id);
                   setReceivedCommentSent(true);
+                  // Refresh received list
+                  if (selectedGroup?.id) {
+                    getGroupReceivedDiaries(String(selectedGroup.id), user.id).then(setReceivedGroupDiaries);
+                  }
                   toast.success("답장을 보냈어요.");
                 }}
                 disabled={receivedComment.length < 30}

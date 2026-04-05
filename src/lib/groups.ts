@@ -351,6 +351,61 @@ export async function matchGroupDiary(
   ])
 }
 
+// ── Get diaries received (to comment on) in a specific group ─────────────────
+export interface ReceivedGroupDiary {
+  cycleId: string
+  diaryId: string
+  senderId: string
+  senderName: string
+  matchDate: string
+  hasCommented: boolean
+  content: string
+  emotion: string | null
+  stamp: string | null
+  paper_design: string | null
+  created_date: string
+}
+
+export async function getGroupReceivedDiaries(
+  groupId: string,
+  userId: string
+): Promise<ReceivedGroupDiary[]> {
+  const { data: cycles, error } = await supabase
+    .from('group_match_cycles')
+    .select('id, diary_id, sender_id, match_date')
+    .eq('group_id', groupId)
+    .eq('receiver_id', userId)
+    .order('match_date', { ascending: false })
+    .limit(20)
+
+  if (error || !cycles || cycles.length === 0) return []
+
+  const result = await Promise.all(
+    cycles.map(async (c) => {
+      const [commentRes, diaryRes, profileRes] = await Promise.all([
+        supabase.from('comments').select('id').eq('diary_id', c.diary_id).eq('author_id', userId).maybeSingle(),
+        supabase.from('diaries').select('content, emotion, stamp, paper_design, created_date').eq('id', c.diary_id).single(),
+        supabase.from('profiles').select('nickname').eq('id', c.sender_id).maybeSingle(),
+      ])
+      const diary = diaryRes.data
+      return {
+        cycleId: c.id,
+        diaryId: c.diary_id,
+        senderId: c.sender_id,
+        senderName: profileRes.data?.nickname ?? '익명',
+        matchDate: c.match_date,
+        hasCommented: !!commentRes.data,
+        content: diary?.content ?? '',
+        emotion: diary?.emotion ?? null,
+        stamp: diary?.stamp ?? null,
+        paper_design: diary?.paper_design ?? null,
+        created_date: diary?.created_date ?? c.match_date,
+      } satisfies ReceivedGroupDiary
+    })
+  )
+  return result
+}
+
 // ── Leave a group ────────────────────────────────────────────────────────────
 export async function leaveGroup(groupId: string, userId: string): Promise<void> {
   const { error } = await supabase
