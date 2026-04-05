@@ -81,13 +81,27 @@ export function GroupExchange() {
     if (!user?.id) return;
     async function loadMyGroups() {
       const groups = await getMyGroups(user!.id);
+      const kstToday = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+      // Fetch today's group diaries for this user to determine status per group
+      const groupIds = groups.map(g => g.id);
+      let writtenGroupIds = new Set<string>();
+      if (groupIds.length > 0) {
+        const { data: todayDiaries } = await supabase
+          .from('diaries')
+          .select('group_id')
+          .eq('author_id', user!.id)
+          .eq('exchange_mode', 'group')
+          .eq('created_date', kstToday)
+          .in('group_id', groupIds);
+        writtenGroupIds = new Set((todayDiaries ?? []).map((d: any) => d.group_id));
+      }
       setMyGroups(groups.map(g => ({
         id: g.id,
         name: g.name,
         members: g.member_count,
         max: g.max_members,
         isOwner: g.is_owner,
-        status: 'waiting' as const,
+        status: writtenGroupIds.has(g.id) ? 'completed' as const : 'waiting' as const,
         comments: 0,
         isPrivate: g.is_private,
         desc: g.description,
@@ -186,6 +200,7 @@ export function GroupExchange() {
         .select('id, content, created_date')
         .eq('author_id', user!.id)
         .eq('exchange_mode', 'group')
+        .eq('group_id', selectedGroup!.id)
         .order('created_date', { ascending: false })
         .limit(20);
       if (!error && data) {
