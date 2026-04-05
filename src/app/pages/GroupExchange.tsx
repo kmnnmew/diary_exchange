@@ -134,24 +134,38 @@ export function GroupExchange() {
     fetchAvailableGroups();
   }, [user?.id]);
 
-  // Fetch members when a group is selected
+  // Fetch members + today's diary status when a group is selected
   useEffect(() => {
     if (!selectedGroup?.id) return;
     async function fetchGroupMembers() {
+      const kstToday = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+
       const { data, error } = await supabase
         .from('group_members')
         .select('user_id, profiles(nickname)')
         .eq('group_id', selectedGroup.id)
         .eq('status', 'active');
-      if (!error && data) {
-        setGroupMembers(data.map((m: any) => ({
-          id: m.user_id,
-          name: (m.profiles as any)?.nickname ?? '익명',
-          status: 'waiting' as const,
-          isMe: m.user_id === user?.id,
-          isOwner: m.user_id === selectedGroup.owner_id,
-        })));
-      }
+
+      if (error || !data) return;
+
+      // Fetch today's group diaries for all members in this group
+      const memberIds = data.map((m: any) => m.user_id);
+      const { data: todayDiaries } = await supabase
+        .from('diaries')
+        .select('author_id, status')
+        .eq('exchange_mode', 'group')
+        .eq('created_date', kstToday)
+        .in('author_id', memberIds);
+
+      const writtenSet = new Set((todayDiaries ?? []).map((d: any) => d.author_id));
+
+      setGroupMembers(data.map((m: any) => ({
+        id: m.user_id,
+        name: (m.profiles as any)?.nickname ?? '익명',
+        status: writtenSet.has(m.user_id) ? 'completed' as const : 'waiting' as const,
+        isMe: m.user_id === user?.id,
+        isOwner: m.user_id === selectedGroup.owner_id,
+      })));
     }
     fetchGroupMembers();
   }, [selectedGroup?.id, user?.id]);
@@ -1034,8 +1048,19 @@ export function GroupExchange() {
                     toast.error("전송에 실패했습니다. 다시 시도해주세요.");
                     return;
                   }
-                  // Update diary status to completed
+                  // Update diary status to completed (RLS now allows receiver to update)
                   await supabase.from('diaries').update({ status: 'completed' }).eq('id', selectedDiary.id);
+                  // Notify the diary author
+                  const { data: diaryRow } = await supabase
+                    .from('diaries').select('author_id').eq('id', selectedDiary.id).single();
+                  if (diaryRow?.author_id) {
+                    await supabase.from('notifications').insert({
+                      user_id: diaryRow.author_id,
+                      message: `${selectedGroup?.name ?? '그룹'}에서 답장이 도착했어요.`,
+                      type: 'group',
+                      is_read: false,
+                    });
+                  }
                   setReceivedCommentSent(true);
                   // Refresh received list
                   if (selectedGroup?.id) {
