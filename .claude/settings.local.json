@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node --version)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 3416 //F)",
+      "Bash(pip install defusedxml -q)",
+      "Bash(python scripts/office/unpack.py \"C:\\\\Users\\\\JB. SIM\\\\Downloads\\\\기능명세서.docx\" unpacked_spec/)",
+      "Bash(pandoc --track-changes=all \"C:\\\\Users\\\\JB. SIM\\\\Downloads\\\\기능명세서.docx\" -o output_spec.md)",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); open\\(''C:/Users/JB. SIM/Downloads/spec_text.txt'',''wb''\\).write\\(data\\)\")",
+      "Bash(node -e \"require\\(''./node_modules/openai''\\)\")",
+      "Bash(npm install openai)",
+      "Bash(npm install concurrently --save-dev)"
+    ]
+  }
+}
