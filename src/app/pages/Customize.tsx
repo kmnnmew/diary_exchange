@@ -75,7 +75,7 @@ export function Customize() {
                 <p style={{ color: '#9A7486', fontSize: '12px' }}>창 밖으로 햇살이 따뜻하게 들어왔다.</p>
               </div>
               {selectedStamp && (
-                <div className="absolute bottom-8 right-8 text-4xl opacity-70 rotate-12">
+                <div className="absolute top-6 right-8 text-[36px] opacity-60 rotate-12 pointer-events-none select-none z-10">
                   {selectedStamp}
                 </div>
               )}
