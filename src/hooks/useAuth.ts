@@ -12,6 +12,7 @@ export interface Profile {
   default_stamp: string | null
   theme: string | null
   created_at: string
+  bio?: string
 }
 
 export function useAuth() {

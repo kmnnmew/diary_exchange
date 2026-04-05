@@ -42,6 +42,20 @@ export function MyPage() {
   const [bio, setBio] = useState(() => profile?.bio ?? "");
   const [bioInput, setBioInput] = useState(bio);
 
+  // profile이 비동기로 로드된 후 bio/nickname 동기화
+  useEffect(() => {
+    if (profile?.bio !== undefined) {
+      setBio(profile.bio ?? "");
+      setBioInput(profile.bio ?? "");
+    }
+  }, [profile?.bio]);
+
+  useEffect(() => {
+    if (profile?.nickname) {
+      setNicknameInput(profile.nickname);
+    }
+  }, [profile?.nickname]);
+
   // 알림 설정
   const [notifDiary, setNotifDiary] = useState(() =>
     localStorage.getItem('notif_diary') !== 'false'
@@ -105,9 +119,16 @@ export function MyPage() {
   };
 
   const handleBioSave = async () => {
-    await supabase.from('profiles').update({ bio: bioInput.trim() }).eq('id', user!.id);
-    setBio(bioInput.trim());
-    toast.success("소개가 저장되었습니다.");
+    const { error } = await supabase
+      .from('profiles')
+      .update({ bio: bioInput.trim() })
+      .eq('id', user!.id);
+    if (error) {
+      toast.error("소개 저장에 실패했습니다.");
+    } else {
+      setBio(bioInput.trim());
+      toast.success("소개가 저장되었습니다.");
+    }
   };
 
   const handleNotifToggle = (key: string, val: boolean) => {
