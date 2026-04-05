@@ -274,7 +274,10 @@ export async function submitGroupDiary(params: {
   return { success: true, diaryId: diary.id }
 }
 
-// ── Match a group diary with a receiver ─────────────────────────────────────
+// ── Match a group diary with a random receiver ───────────────────────────────
+// One diary → exactly one commenter, randomly selected.
+// Prefer members who haven't been assigned as commenter (receiver) yet this cycle.
+// After all members have been commenter once, the cycle resets automatically.
 export async function matchGroupDiary(
   diaryId: string,
   groupId: string,
@@ -282,7 +285,15 @@ export async function matchGroupDiary(
 ): Promise<void> {
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
 
-  // Get all active group members except sender
+  // Guard: diary already has a commenter assigned
+  const { data: existingMatch } = await supabase
+    .from('group_match_cycles')
+    .select('id')
+    .eq('diary_id', diaryId)
+    .maybeSingle()
+  if (existingMatch) return
+
+  // All active members except the sender
   const { data: members } = await supabase
     .from('group_members')
     .select('user_id')
@@ -294,61 +305,33 @@ export async function matchGroupDiary(
 
   const memberIds = members.map((m) => m.user_id)
 
-  // Find sender IDs already matched today in this group
-  const { data: alreadyMatched } = await supabase
+  // Members who have already been assigned as commenter this cycle
+  const { data: usedRows } = await supabase
     .from('group_match_cycles')
-    .select('sender_id')
+    .select('receiver_id')
     .eq('group_id', groupId)
-    .eq('match_date', today)
+    .in('receiver_id', memberIds)
 
-  const matchedSenderIds = new Set((alreadyMatched ?? []).map((m) => m.sender_id))
+  const usedSet = new Set((usedRows ?? []).map((r) => r.receiver_id))
 
-  // Find members who haven't been matched as sender yet today
-  const unmatchedMemberIds = memberIds.filter((id) => !matchedSenderIds.has(id))
+  // Prefer members not yet used; if all used (cycle complete) reset to full list
+  let candidates = memberIds.filter((id) => !usedSet.has(id))
+  if (candidates.length === 0) {
+    // Full cycle completed — reset by deleting old cycle records for this group
+    await supabase.from('group_match_cycles').delete().eq('group_id', groupId)
+    candidates = memberIds
+  }
 
-  if (unmatchedMemberIds.length === 0) return
+  // Random pick
+  const receiverId = candidates[Math.floor(Math.random() * candidates.length)]
 
-  // Pick the first available unmatched member
-  const receiverId = unmatchedMemberIds[0]
-
-  // Find receiver's group diary for today
-  const { data: receiverDiary } = await supabase
-    .from('diaries')
-    .select('id')
-    .eq('author_id', receiverId)
-    .eq('exchange_mode', 'group')
-    .eq('created_date', today)
-    .maybeSingle()
-
-  if (!receiverDiary) return // Receiver hasn't written yet; will be matched when they do
-
-  // Get current cycle count for numbering
-  const { count } = await supabase
-    .from('group_match_cycles')
-    .select('*', { count: 'exact', head: true })
-    .eq('group_id', groupId)
-
-  const cycleNumber = (count ?? 0) + 1
-
-  // Create mutual match: sender↔receiver
-  await supabase.from('group_match_cycles').insert([
-    {
-      group_id: groupId,
-      cycle_number: cycleNumber,
-      sender_id: senderId,
-      receiver_id: receiverId,
-      diary_id: diaryId,
-      match_date: today,
-    },
-    {
-      group_id: groupId,
-      cycle_number: cycleNumber + 1,
-      sender_id: receiverId,
-      receiver_id: senderId,
-      diary_id: receiverDiary.id,
-      match_date: today,
-    },
-  ])
+  await supabase.from('group_match_cycles').insert({
+    group_id: groupId,
+    sender_id: senderId,
+    receiver_id: receiverId,
+    diary_id: diaryId,
+    match_date: today,
+  })
 }
 
 // ── Get diaries received (to comment on) in a specific group ─────────────────
