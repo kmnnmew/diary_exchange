@@ -233,23 +233,25 @@ export async function submitGroupDiary(params: {
 }): Promise<{ success: boolean; diaryId?: string; error?: string }> {
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
 
-  // Daily limit: one group diary per day
+  // Daily limit: one diary per group per day (group-specific)
   const { data: existing } = await supabase
     .from('diaries')
     .select('id')
     .eq('author_id', params.userId)
     .eq('exchange_mode', 'group')
+    .eq('group_id', params.groupId)
     .eq('created_date', today)
     .maybeSingle()
 
   if (existing) {
-    return { success: false, error: '오늘 이미 그룹 일기를 작성했습니다.' }
+    return { success: false, error: '오늘 이 그룹에 이미 일기를 작성했습니다.' }
   }
 
   const insertPayload: Record<string, unknown> = {
     author_id: params.userId,
     content: params.content,
     exchange_mode: 'group',
+    group_id: params.groupId,
     created_date: today,
     status: 'waiting',
   }
@@ -342,6 +344,7 @@ export interface ReceivedGroupDiary {
   senderName: string
   matchDate: string
   hasCommented: boolean
+  myComment: string | null
   content: string
   emotion: string | null
   stamp: string | null
@@ -366,7 +369,7 @@ export async function getGroupReceivedDiaries(
   const result = await Promise.all(
     cycles.map(async (c) => {
       const [commentRes, diaryRes, profileRes] = await Promise.all([
-        supabase.from('comments').select('id').eq('diary_id', c.diary_id).eq('author_id', userId).maybeSingle(),
+        supabase.from('comments').select('id, content').eq('diary_id', c.diary_id).eq('author_id', userId).maybeSingle(),
         supabase.from('diaries').select('content, emotion, stamp, paper_design, created_date').eq('id', c.diary_id).single(),
         supabase.from('profiles').select('nickname').eq('id', c.sender_id).maybeSingle(),
       ])
@@ -378,6 +381,7 @@ export async function getGroupReceivedDiaries(
         senderName: profileRes.data?.nickname ?? '익명',
         matchDate: c.match_date,
         hasCommented: !!commentRes.data,
+        myComment: commentRes.data?.content ?? null,
         content: diary?.content ?? '',
         emotion: diary?.emotion ?? null,
         stamp: diary?.stamp ?? null,

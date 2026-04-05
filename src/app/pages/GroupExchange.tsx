@@ -207,6 +207,7 @@ export function GroupExchange() {
         .select('id, status')
         .eq('author_id', user!.id)
         .eq('exchange_mode', 'group')
+        .eq('group_id', selectedGroup!.id)
         .eq('created_date', kstToday)
         .maybeSingle();
       setTodayGroupDiary(data ?? null);
@@ -662,7 +663,7 @@ export function GroupExchange() {
                   {receivedGroupDiaries.filter(d => !d.hasCommented).map(rd => (
                     <button
                       key={rd.cycleId}
-                      onClick={() => handleDiaryClick({ id: rd.diaryId, date: rd.created_date, content: rd.content, emotion: rd.emotion, stamp: rd.stamp, paper_design: rd.paper_design, senderName: rd.senderName })}
+                      onClick={() => handleDiaryClick({ id: rd.diaryId, date: rd.created_date, content: rd.content, emotion: rd.emotion, stamp: rd.stamp, paper_design: rd.paper_design, senderName: rd.senderName, hasCommented: rd.hasCommented, myComment: rd.myComment })}
                       className="w-full text-left border border-[var(--accent)]/40 bg-[var(--accent)]/5 hover:bg-[var(--accent)]/10 p-4 rounded-[4px] transition-colors"
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -687,7 +688,7 @@ export function GroupExchange() {
                   {receivedGroupDiaries.filter(d => d.hasCommented).map(rd => (
                     <button
                       key={rd.cycleId}
-                      onClick={() => handleDiaryClick({ id: rd.diaryId, date: rd.created_date, content: rd.content, emotion: rd.emotion, stamp: rd.stamp, paper_design: rd.paper_design, senderName: rd.senderName })}
+                      onClick={() => handleDiaryClick({ id: rd.diaryId, date: rd.created_date, content: rd.content, emotion: rd.emotion, stamp: rd.stamp, paper_design: rd.paper_design, senderName: rd.senderName, hasCommented: rd.hasCommented, myComment: rd.myComment })}
                       className="w-full text-left border border-[var(--line)] p-4 rounded-[4px] hover:border-[var(--accent)]/30 transition-colors"
                     >
                       <div className="flex items-center justify-between">
@@ -1006,10 +1007,16 @@ export function GroupExchange() {
 
         {/* Comment */}
         <div className="flex-[2] bg-[var(--surface)] border border-[var(--line)] p-6">
-          {receivedCommentSent ? (
-            <div className="flex flex-col items-center justify-center h-full text-center py-8">
-              <p className="text-[18pt] italic font-serif mb-2 text-[var(--text-primary)]">답장을 보냈어요.</p>
-              <p className="text-[13pt] text-[var(--text-muted)] font-serif">원작성자에게 전달됩니다.</p>
+          {/* 이미 답장한 경우 — 내용만 표시 */}
+          {(selectedDiary?.hasCommented || receivedCommentSent) ? (
+            <div className="flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-[14pt] font-serif text-[var(--secondary)]">✓ 보낸 답장</h3>
+              </div>
+              <div className="flex-1 border border-[var(--line)] p-4 font-serif text-[14pt] leading-relaxed text-[var(--text-primary)] bg-[var(--bg)] whitespace-pre-wrap">
+                {selectedDiary?.myComment ?? receivedComment}
+              </div>
+              <p className="text-[9pt] font-mono text-[var(--text-muted)] mt-3">답장은 한 번만 보낼 수 있습니다.</p>
             </div>
           ) : (
             <>
