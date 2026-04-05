@@ -94,14 +94,31 @@ export function Home() {
   }, [user?.id]);
 
   const [groupCount, setGroupCount] = useState(0);
+  const [groupWrittenCount, setGroupWrittenCount] = useState(0);
   useEffect(() => {
     if (!user?.id) return;
+    const kstToday = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    // 참여 중인 그룹 목록
     supabase
       .from('group_members')
-      .select('id', { count: 'exact', head: true })
+      .select('group_id')
       .eq('user_id', user.id)
       .eq('status', 'active')
-      .then(({ count }) => setGroupCount(count ?? 0));
+      .then(async ({ data: members }) => {
+        const count = members?.length ?? 0;
+        setGroupCount(count);
+        if (count === 0) return;
+        const groupIds = members!.map((m: any) => m.group_id);
+        // 오늘 작성한 그룹 일기 수
+        const { data: written } = await supabase
+          .from('diaries')
+          .select('group_id')
+          .eq('author_id', user!.id)
+          .eq('exchange_mode', 'group')
+          .eq('created_date', kstToday)
+          .in('group_id', groupIds);
+        setGroupWrittenCount(written?.length ?? 0);
+      });
   }, [user?.id]);
 
   const recentEntries = archiveEntries.slice(0, 3);
@@ -263,9 +280,11 @@ export function Home() {
           </div>
           <div className="mb-6">
             <div className="text-[16pt] font-serif mb-1">{groupCount}개 그룹 참여 중</div>
-            <div className={`text-[10pt] font-mono ${groupDiaryWrittenToday ? 'text-[var(--secondary)]' : 'text-[var(--accent)]'}`}>
-              {groupDiaryWrittenToday
-                ? '오늘 일기 완료 ✓'
+            <div className={`text-[10pt] font-mono ${groupWrittenCount === groupCount && groupCount > 0 ? 'text-[var(--secondary)]' : 'text-[var(--accent)]'}`}>
+              {groupCount > 0
+                ? groupWrittenCount === groupCount
+                  ? `${groupWrittenCount}/${groupCount} 완료 ✓`
+                  : `${groupWrittenCount}/${groupCount} 완료`
                 : pendingCommentCount !== null && pendingCommentCount > 0
                   ? `대기 중인 코멘트 ${pendingCommentCount}건`
                   : '일기를 작성해보세요'}
